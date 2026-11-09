@@ -7,8 +7,8 @@ export interface DigitalStand {
   label: string;
   direction: string;
   color: string;
-  price: number;
-  availableSeats: number;
+  price: number | null;
+  availableSeats: number | null;
 }
 
 interface DigitalStadiumProps {
@@ -18,6 +18,7 @@ interface DigitalStadiumProps {
   selectedSectorId: string | null;
   onSelectStand: (stand: StandId) => void;
   onSelectSector: (sector: Sector) => void;
+  showPricing?: boolean;
 }
 
 function formatPrice(value: number): string {
@@ -30,7 +31,8 @@ export const DigitalStadium: React.FC<DigitalStadiumProps> = ({
   selectedStand,
   selectedSectorId,
   onSelectStand,
-  onSelectSector
+  onSelectSector,
+  showPricing = true
 }) => {
   const stand = (id: StandId) => stands.find((item) => item.id === id)!;
   const activeSectors = sectors.filter((sector) => sector.standId === selectedStand);
@@ -45,13 +47,13 @@ export const DigitalStadium: React.FC<DigitalStadiumProps> = ({
   ) => {
     const item = stand(id);
     const active = selectedStand === id;
-    const available = item.availableSeats > 0;
+    const available = item.availableSeats === null || item.availableSeats > 0;
     return (
       <g
         key={id}
         role="button"
         tabIndex={available ? 0 : -1}
-        aria-label={`${item.label}, ${item.availableSeats} billets disponibles, dès ${formatPrice(item.price)}`}
+        aria-label={`${item.label}${item.availableSeats === null ? '' : `, ${item.availableSeats} billets disponibles`}${item.price === null ? '' : `, dès ${formatPrice(item.price)}`}`}
         aria-pressed={active}
         onClick={() => available && onSelectStand(id)}
         onKeyDown={(event) => {
@@ -76,7 +78,7 @@ export const DigitalStadium: React.FC<DigitalStadiumProps> = ({
             {label}
           </text>
           <text y="17" textAnchor="middle" fill="#fff7ed" fontSize="10" fontWeight="700" fontFamily="Plus Jakarta Sans, sans-serif">
-            {available ? `DÈS ${formatPrice(item.price)} · ${item.availableSeats} PLACES` : 'COMPLET'}
+            {!available ? 'COMPLET' : item.price !== null && item.availableSeats !== null ? `DÈS ${formatPrice(item.price)} · ${item.availableSeats} PLACES` : item.direction.toUpperCase()}
           </text>
         </g>
       </g>
@@ -187,7 +189,7 @@ export const DigitalStadium: React.FC<DigitalStadiumProps> = ({
       <div className="grid gap-2 border-t border-white/10 bg-slate-900/90 p-3 sm:grid-cols-2 sm:p-4">
         {stands.map((item) => {
           const active = selectedStand === item.id;
-          const available = item.availableSeats > 0;
+          const available = item.availableSeats === null || item.availableSeats > 0;
           return (
             <button
               key={item.id}
@@ -198,9 +200,9 @@ export const DigitalStadium: React.FC<DigitalStadiumProps> = ({
             >
               <span className="flex min-w-0 items-center gap-2.5">
                 <span className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: item.color }} />
-                <span className="min-w-0"><span className="block truncate text-xs font-bold text-white">{item.label}</span><span className="block text-[10px] text-white/50">{item.direction} · {available ? `${item.availableSeats} places` : 'complet'}</span></span>
+                <span className="min-w-0"><span className="block truncate text-xs font-bold text-white">{item.label}</span><span className="block text-[10px] text-white/50">{item.direction}{item.availableSeats === null ? '' : ` · ${available ? `${item.availableSeats} places` : 'complet'}`}</span></span>
               </span>
-              <span className="shrink-0 text-right"><span className="block text-[9px] uppercase text-white/40">Dès</span><span className="text-xs font-black text-amber-300">{formatPrice(item.price)}</span></span>
+              {item.price === null ? <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-white/45">Voir tarifs</span> : <span className="shrink-0 text-right"><span className="block text-[9px] uppercase text-white/40">Dès</span><span className="text-xs font-black text-amber-300">{formatPrice(item.price)}</span></span>}
             </button>
           );
         })}
@@ -224,7 +226,7 @@ export const DigitalStadium: React.FC<DigitalStadiumProps> = ({
                 ))}
               </div>
             ) : (
-              <p className="mt-3 text-xs text-white/50">Aucune catégorie ouverte dans cette tribune.</p>
+              <p className="mt-3 text-xs text-white/50">{showPricing ? 'Aucune catégorie ouverte dans cette tribune.' : 'Choisissez un événement pour afficher les catégories, tarifs et disponibilités.'}</p>
             )}
           </>
         ) : (

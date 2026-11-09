@@ -45,6 +45,7 @@ export default function EventsPage() {
 
   const [selected, setSelected] = useState<TicketingEvent | null>(null);
   const [selectedStand, setSelectedStand] = useState<StandId | null>(null);
+  const [exploreStand, setExploreStand] = useState<StandId | null>(null);
   const [selectedSectorId, setSelectedSectorId] = useState<string | null>(null);
   const [step, setStep] = useState<Step>('catalogue');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -307,6 +308,26 @@ export default function EventsPage() {
                 <div className="flex items-center gap-3 border-white/10 px-5 py-4 sm:border-x sm:px-8"><ShieldCheck className="h-5 w-5 text-amber-400" /><div><div className="text-sm font-bold">Sans compte</div><div className="text-[11px] text-white/55">Une réservation en quelques étapes</div></div></div>
                 <div className="flex items-center gap-3 px-5 py-4 sm:px-8"><Mail className="h-5 w-5 text-amber-400" /><div><div className="text-sm font-bold">Suivi par e-mail</div><div className="text-[11px] text-white/55">Votre bon de commande vous accompagne</div></div></div>
               </div>
+            </section>
+
+            <section className="mt-10 sm:mt-14">
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.22em] text-red-700 dark:text-amber-400">Entrez dans Bollaert</div>
+                  <h2 className="mt-1 font-heading text-3xl font-black uppercase text-slate-900 dark:text-white sm:text-4xl">Explorez le stade en numérique</h2>
+                  <p className="mt-1 max-w-2xl text-sm text-slate-500 dark:text-slate-400">Parcourez les quatre tribunes dans une maquette isométrique. Choisissez un événement pour consulter ensuite les tarifs et les catégories disponibles.</p>
+                </div>
+                <a href="#evenements" className="inline-flex w-fit items-center gap-2 rounded-lg bg-red-700 px-4 py-2.5 text-xs font-bold uppercase text-white transition hover:bg-red-800">Choisir un événement <ArrowRight className="h-4 w-4" /></a>
+              </div>
+              <DigitalStadium
+                stands={STANDS.map((stand) => ({ ...stand, direction: stand.side, price: null, availableSeats: null }))}
+                sectors={[]}
+                selectedStand={exploreStand}
+                selectedSectorId={null}
+                onSelectStand={setExploreStand}
+                onSelectSector={() => undefined}
+                showPricing={false}
+              />
             </section>
 
             <section id="evenements" className="mt-14 scroll-mt-28 sm:mt-20">
