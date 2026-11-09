@@ -83,10 +83,10 @@ const EMPTY_TYPE: TicketTypeFormState = {
 };
 
 const ADMIN_STAND_LABELS: Record<StandId, string> = {
-  DELACOURT: 'Delacourt · Nord',
-  TRANNIN: 'Trannin · Sud',
-  MAREK_XERCES: 'Marek / Xercès · Est',
-  LEPAGNOT: 'Lepagnot · Ouest'
+  DELACOURT: 'Delacourt · droite',
+  TRANNIN: 'Trannin · gauche',
+  MAREK_XERCES: 'Marek / Xercès · haut',
+  LEPAGNOT: 'Lepagnot · bas'
 };
 
 function toDateTimeLocal(iso: string): string {
@@ -1608,10 +1608,10 @@ export default function AdminPage() {
                         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-600 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                       >
                         <option value="" disabled>Choisir la tribune de cette offre</option>
-                        <option value="DELACOURT">Tribune Delacourt · Nord</option>
-                        <option value="TRANNIN">Tribune Trannin · Sud</option>
-                        <option value="MAREK_XERCES">Tribune Marek / Xercès · Est</option>
-                        <option value="LEPAGNOT">Tribune Lepagnot · Ouest</option>
+                        <option value="DELACOURT">Tribune Delacourt · à droite</option>
+                        <option value="TRANNIN">Tribune Trannin · à gauche</option>
+                        <option value="MAREK_XERCES">Tribune Marek / Xercès · en haut</option>
+                        <option value="LEPAGNOT">Tribune Lepagnot · en bas</option>
                       </select>
                       <input
                         value={typeForm.name}

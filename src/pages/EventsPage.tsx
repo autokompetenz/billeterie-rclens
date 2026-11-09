@@ -33,10 +33,10 @@ function formatPrice(value: number): string {
 }
 
 const STANDS: Array<{ id: StandId; label: string; side: string; color: string }> = [
-  { id: 'DELACOURT', label: 'Delacourt', side: 'Nord · but nord', color: '#059669' },
-  { id: 'TRANNIN', label: 'Trannin', side: 'Sud · but sud', color: '#2563eb' },
-  { id: 'MAREK_XERCES', label: 'Marek / Xercès', side: 'Est · kop', color: '#dc2626' },
-  { id: 'LEPAGNOT', label: 'Lepagnot', side: 'Ouest · honneur', color: '#d97706' }
+  { id: 'DELACOURT', label: 'Delacourt', side: 'À droite', color: '#059669' },
+  { id: 'TRANNIN', label: 'Trannin', side: 'À gauche', color: '#2563eb' },
+  { id: 'MAREK_XERCES', label: 'Marek / Xercès', side: 'En haut · kop', color: '#dc2626' },
+  { id: 'LEPAGNOT', label: 'Lepagnot', side: 'En bas · honneur', color: '#d97706' }
 ];
 
 interface HomepageHeroProps {
@@ -592,10 +592,10 @@ export default function EventsPage() {
                   <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/65">Le plan de réservation représente les quatre tribunes de Bollaert-Delelis. Les catégories proposées et leur tarif dépendent de l’événement.</p>
                   <div className="mt-6 grid grid-cols-2 gap-2">
                     {[
-                      ['Nord', 'Delacourt', 'Derrière le but'],
-                      ['Sud', 'Trannin', 'Derrière le but'],
-                      ['Est', 'Marek / Xercès', 'Kop Sang et Or'],
-                      ['Ouest', 'Lepagnot', 'Tribune honneur']
+                      ['À droite', 'Delacourt', 'Côté droit du plan'],
+                      ['À gauche', 'Trannin', 'Côté gauche du plan'],
+                      ['En haut', 'Marek / Xercès', 'Kop Sang et Or'],
+                      ['En bas', 'Lepagnot', 'Tribune honneur']
                     ].map(([side, stand, detail]) => (
                       <div key={stand} className="rounded-xl border border-white/10 bg-white/5 p-3">
                         <div className="text-[9px] font-bold uppercase tracking-widest text-amber-300">{side}</div>

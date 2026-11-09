@@ -6,10 +6,10 @@ import { eventsApi, getErrorMessage } from '../services/api';
 import { Sector, StandId, TicketingEvent } from '../types/ticketing';
 
 const STANDS: Array<Omit<DigitalStand, 'price' | 'availableSeats'>> = [
-  { id: 'DELACOURT', label: 'Delacourt', direction: 'Nord · but nord', color: '#059669' },
-  { id: 'TRANNIN', label: 'Trannin', direction: 'Sud · but sud', color: '#2563eb' },
-  { id: 'MAREK_XERCES', label: 'Marek / Xercès', direction: 'Est · kop', color: '#dc2626' },
-  { id: 'LEPAGNOT', label: 'Lepagnot', direction: 'Ouest · honneur', color: '#d97706' }
+  { id: 'DELACOURT', label: 'Delacourt', direction: 'À droite', color: '#059669' },
+  { id: 'TRANNIN', label: 'Trannin', direction: 'À gauche', color: '#2563eb' },
+  { id: 'MAREK_XERCES', label: 'Marek / Xercès', direction: 'En haut · kop', color: '#dc2626' },
+  { id: 'LEPAGNOT', label: 'Lepagnot', direction: 'En bas · honneur', color: '#d97706' }
 ];
 
 function money(value: number) { return `${value.toFixed(2).replace('.', ',')} €`; }

@@ -25,10 +25,10 @@ export const eventsRouter = Router();
 
 const MAX_TICKETS_PER_ORDER = 10;
 const STAND_NAMES: Record<string, string> = {
-  DELACOURT: 'Tribune Delacourt · Nord',
-  TRANNIN: 'Tribune Trannin · Sud',
-  MAREK_XERCES: 'Tribune Marek / Xercès · Est',
-  LEPAGNOT: 'Tribune Lepagnot · Ouest'
+  DELACOURT: 'Tribune Delacourt · droite',
+  TRANNIN: 'Tribune Trannin · gauche',
+  MAREK_XERCES: 'Tribune Marek / Xercès · haut',
+  LEPAGNOT: 'Tribune Lepagnot · bas'
 };
 
 /* Images importées depuis l'administration, servies avec un cache long. */

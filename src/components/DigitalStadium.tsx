@@ -161,10 +161,10 @@ export const DigitalStadium: React.FC<DigitalStadiumProps> = ({
             })}
 
             {/* Stand facades are clickable areas */}
-            {standPath('DELACOURT', 'M220 112 Q450 42 680 112 L650 227 Q450 177 250 227Z', 'DELACOURT · NORD', 450, 139)}
-            {standPath('TRANNIN', 'M250 370 Q450 421 650 370 L690 470 Q450 545 210 470Z', 'TRANNIN · SUD', 450, 439)}
-            {standPath('LEPAGNOT', 'M112 197 L242 231 L216 385 L92 350Z', 'LEPAGNOT · OUEST', 171, 294, -76)}
-            {standPath('MAREK_XERCES', 'M658 231 L788 197 L808 350 L684 385Z', 'MAREK / XERCÈS · EST', 730, 294, 76)}
+            {standPath('MAREK_XERCES', 'M220 112 Q450 42 680 112 L650 227 Q450 177 250 227Z', 'MAREK / XERCÈS · HAUT', 450, 139)}
+            {standPath('LEPAGNOT', 'M250 370 Q450 421 650 370 L690 470 Q450 545 210 470Z', 'LEPAGNOT · BAS', 450, 439)}
+            {standPath('TRANNIN', 'M112 197 L242 231 L216 385 L92 350Z', 'TRANNIN · GAUCHE', 171, 294, -76)}
+            {standPath('DELACOURT', 'M658 231 L788 197 L808 350 L684 385Z', 'DELACOURT · DROITE', 730, 294, 76)}
 
             {/* Pitch, with perspective markings */}
             <path d="M267 231 L633 231 L674 376 L226 376Z" fill="url(#grass)" stroke="#dcfce7" strokeWidth="3" />
