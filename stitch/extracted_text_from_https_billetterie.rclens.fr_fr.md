@@ -1,0 +1,1 @@
+Redirecting to [https://nextxp.queue-it.net/?c=nextxp&e=rcl247&ver=v4-php-4.4.3&cver=139&man=RCL&t=https%3A%2F%2Fbilletterie.rclens.fr%2Ffr%2F](https://nextxp.queue-it.net/?c=nextxp&e=rcl247&ver=v4-php-4.4.3&cver=139&man=RCL&t=https%3A%2F%2Fbilletterie.rclens.fr%2Ffr%2F).
