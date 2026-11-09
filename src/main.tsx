@@ -8,7 +8,7 @@ import './index.css';
 
 /**
  * Routage minimal basé sur le chemin (pas de dépendance supplémentaire).
- * - /              → application historique (matchs, plan de stade, bourse…)
+ * - /              → accueil : événements publiés en base + achat invité
  * - /evenements    → catalogue d'événements + achat invité
  * - /verifier      → vérification d'un bon de commande / billet
  * - /admin         → espace administrateur masqué
@@ -17,7 +17,7 @@ import './index.css';
 function resolvePage(pathname: string) {
   const path = pathname.replace(/\/+$/, '') || '/';
   if (path === '/admin') return <AdminPage />;
-  if (path === '/evenements') return <EventsPage />;
+  if (path === '/' || path === '/evenements') return <EventsPage />;
   if (path === '/verifier') return <VerifyPage />;
   return <App />;
 }

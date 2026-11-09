@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarDays, Home, ShieldCheck, Ticket } from 'lucide-react';
+import { CalendarDays, Home, ShieldCheck } from 'lucide-react';
 
 /**
  * En-tête commun aux pages publiques ajoutées (événements, vérification).
@@ -63,13 +63,6 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({ active }) => {
               </a>
             );
           })}
-          <a
-            href="/#billetterie"
-            className="ml-1 hidden items-center gap-1.5 rounded-lg bg-amber-400 px-3 py-2 text-sm font-bold text-slate-950 shadow-sm transition hover:bg-amber-300 sm:flex"
-          >
-            <Ticket className="h-4 w-4" />
-            Matchs
-          </a>
         </nav>
       </div>
     </header>

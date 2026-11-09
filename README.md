@@ -160,7 +160,7 @@ Le montant est stocké en **centimes** dans PostgreSQL et converti en euros aux 
 
 ## Parcours client
 
-### Événements et achat sans compte — `/evenements`
+### Accueil et événements — `/` et `/evenements`
 
 1. Le client choisit un événement publié et une catégorie de billet (stock et maximum par commande contrôlés côté serveur).
 2. Il saisit son nom, son e-mail et éventuellement son téléphone.
@@ -174,9 +174,9 @@ Le montant est stocké en **centimes** dans PostgreSQL et converti en euros aux 
 - **Par code billet** (`RCL-…`) : affiche la catégorie, le bénéficiaire masqué et le statut (`valid`, `used`, `cancelled`).
 - Un numéro inconnu renvoie une erreur 404 explicite.
 
-### Application historique — `/`
+La page d'accueil affiche désormais le catalogue des événements publiés enregistrés en base, avec leurs catégories de billets actives. Le parcours historique de matchs n'est plus affiché sur la page d'accueil.
 
-Matchs, plan interactif du stade, pré-réservation, panier et liste d'attente sont accessibles sans compte. Au paiement, le client renseigne son nom, son e-mail et éventuellement son téléphone. Une commande en attente est créée et le site/e-mail affichent les coordonnées du compte, le montant et le motif de virement `RCL-…`. Les billets sont activés lorsque l'admin confirme la réception du paiement. Le numéro `CMD-RCL-…` permet de vérifier la commande sur `/verifier`.
+À la commande, le client renseigne son nom, son e-mail et éventuellement son téléphone. Une commande en attente est créée et le site/e-mail affichent les coordonnées bancaires, le montant et le motif de virement `RCL-…`. Les billets sont activés lorsque l'admin confirme la réception du virement. Le numéro de commande permet de vérifier son statut sur `/verifier`.
 
 Les réservations invitées utilisent l'en-tête `X-Guest-Id` généré et conservé par le navigateur. Pour envoyer les e-mails, configurez `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` et `ADMIN_EMAIL`. Sans configuration SMTP, les messages sont consignés dans les logs et dans `email_log` mais ne sont pas délivrés.
 
