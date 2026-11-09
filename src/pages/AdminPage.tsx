@@ -4,6 +4,7 @@ import {
   CalendarDays,
   CheckCircle2,
   Euro,
+  ExternalLink,
   LayoutDashboard,
   Loader2,
   Lock,
@@ -857,6 +858,11 @@ export default function AdminPage() {
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                         {event.formattedDate} · {event.venue}
                       </p>
+                      {event.status !== 'published' && (
+                        <p className="mt-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                          Non visible au public : passez le statut à « Publié ».
+                        </p>
+                      )}
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                         {event.ticketTypes.length} catégorie(s) ·{' '}
                         {event.availableStock} billet(s) disponible(s) ·{' '}
@@ -865,6 +871,16 @@ export default function AdminPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
+                      {event.status === 'published' && (
+                        <a
+                          href={`/evenements?event=${encodeURIComponent(event.slug)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" /> Voir sur le site
+                        </a>
+                      )}
                       <button
                         type="button"
                         onClick={() => openEditEvent(event)}
@@ -904,9 +920,9 @@ export default function AdminPage() {
                         </div>
                       </div>
                     ))}
-                    {event.ticketTypes.length === 0 && (
+                    {!event.ticketTypes.some((type) => type.active) && (
                       <p className="text-xs text-amber-600 dark:text-amber-400">
-                        Aucune catégorie de billet : ajoutez-en pour ouvrir la vente.
+                        Aucun billet actif : ajoutez ou réactivez une catégorie pour ouvrir la vente.
                       </p>
                     )}
                   </div>

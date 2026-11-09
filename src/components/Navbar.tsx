@@ -84,6 +84,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </button>
 
+          <a
+            href="/evenements"
+            className="py-2 transition-colors text-slate-700 hover:text-red-700 dark:text-slate-300 dark:hover:text-amber-400"
+          >
+            Événements
+          </a>
+
           <button
             onClick={() => setActiveTab('exchange')}
             className={`py-2 flex items-center gap-1.5 transition-colors relative cursor-pointer ${
@@ -202,6 +209,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           <Calendar className="w-3.5 h-3.5" />
           <span>Matchs</span>
         </button>
+
+        <a
+          href="/evenements"
+          className="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shrink-0 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+        >
+          <Ticket className="w-3.5 h-3.5 text-red-600 dark:text-amber-400" />
+          <span>Événements</span>
+        </a>
 
         <button
           onClick={() => setActiveTab('exchange')}
