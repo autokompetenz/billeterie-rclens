@@ -8,4 +8,4 @@ coverage/
 !.env.example
 data/
 server.js
-
+.vercel/

@@ -466,7 +466,8 @@ Le statut de chaque envoi est consultable dans la table `email_log` (`sent`, `fa
 2. **Vercel** : importez le dépôt. `vercel.json` définit déjà :
    - `buildCommand: npm run build` (frontend Vite → `dist/`) ;
    - la fonction serverless `api/[...path].ts` qui réexporte l'application Express ;
-   - la réécriture SPA vers `index.html` (hors `/api`).
+   - la réécriture SPA vers `index.html` (hors `/api`) ;
+   - une réécriture explicite `/api/(.*)` vers la fonction serverless. Elle est indispensable : le routage automatique généré par Vercel ne transmet que les chemins à **un seul segment** (`/api/health`), et renvoie un 404 pour les routes imbriquées (`/api/admin/login`, `/api/orders/guest`, `/api/events/:slug`).
 3. **Variables d'environnement Vercel** : `DATABASE_URL`, `ADMIN_CODE`, `ADMIN_SESSION_SECRET`, `SMTP_*`, `MAIL_FROM`, `ADMIN_EMAIL`, `APP_URL`, `SEED_DEMO_DATA=false`.
 4. Déployez. Au premier appel API, le schéma est créé automatiquement (initialisation mémoïsée, sans `setInterval` en serverless).
 

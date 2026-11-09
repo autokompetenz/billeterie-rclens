@@ -33,11 +33,56 @@ export class ApiError extends Error {
   readonly code: string;
 
   constructor(status: number, message: string, code = 'ERROR') {
-    super(message);
+    // Toujours convertir en chaîne : une erreur renvoyée sous forme d'objet
+    // ne doit jamais produire « [object Object] » à l'écran.
+    super(typeof message === 'string' && message.trim() ? message : String(message));
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
   }
+}
+
+/**
+ * Extrait un message lisible depuis une valeur inconnue.
+ * Gère les erreurs sous forme de chaîne, d'objet `{ message }` ou
+ * d'objet imbriqué `{ error: { message } }`.
+ */
+function toMessage(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  }
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    return (
+      toMessage(record.message) ??
+      toMessage(record.error) ??
+      toMessage(record.detail) ??
+      null
+    );
+  }
+  return null;
+}
+
+/**
+ * Construit un message et un code d'erreur à partir du corps de réponse.
+ * Le serveur renvoie normalement `{ error, code }`, mais une passerelle ou
+ * une page d'erreur peut renvoyer un objet différent : on ne plante jamais.
+ */
+function extractError(payload: unknown, status: number): { message: string; code: string } {
+  const fallback =
+    status === 404
+      ? "Le service de billetterie est introuvable. Réessayez dans un instant."
+      : 'Une erreur est survenue. Merci de réessayer.';
+
+  if (!payload || typeof payload !== 'object') {
+    return { message: fallback, code: 'ERROR' };
+  }
+
+  const record = payload as Record<string, unknown>;
+  const message = toMessage(record.error) ?? toMessage(record.message) ?? fallback;
+  const code = typeof record.code === 'string' ? record.code : 'ERROR';
+  return { message, code };
 }
 
 /* ------------------------------------------------------------------ */
@@ -122,12 +167,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 
   if (!response.ok) {
-    const data = (payload ?? {}) as { error?: string; code?: string };
-    throw new ApiError(
-      response.status,
-      data.error || 'Une erreur est survenue.',
-      data.code || 'ERROR'
-    );
+    const { message, code } = extractError(payload, response.status);
+    throw new ApiError(response.status, message, code);
   }
 
   return payload as T;
@@ -504,6 +545,8 @@ export const adminApi = {
 /** Message lisible pour une erreur quelconque. */
 export function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.message;
-  if (error instanceof Error) return error.message;
-  return 'Une erreur inattendue est survenue.';
+  if (error instanceof Error) {
+    return error.message.trim() ? error.message : 'Une erreur inattendue est survenue.';
+  }
+  return toMessage(error) ?? 'Une erreur inattendue est survenue.';
 }
