@@ -365,7 +365,12 @@ export default function EventsPage() {
       <main className={step === 'catalogue' ? 'mx-auto w-full max-w-7xl px-0 pb-8' : step === 'checkout' ? 'mx-auto max-w-6xl px-4 pb-40 pt-6 sm:px-6 sm:py-12 sm:pb-12' : 'mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-12'}>
         {step === 'catalogue' && (
           <>
-            <HomepageHero event={featuredEvent} events={events} loading={loading} onReserve={openEvent} />
+            <HomepageHero
+              event={featuredEvent}
+              events={events}
+              loading={loading}
+              onReserve={(event) => window.location.assign(`/evenements/${encodeURIComponent(event.slug)}`)}
+            />
 
             <section id="evenements" className="scroll-mt-24 bg-[#fcf9f8] px-4 py-9 sm:px-6 sm:py-12">
               <div className="mb-6 flex flex-col items-center justify-center text-center">
@@ -457,7 +462,6 @@ export default function EventsPage() {
 
               <div className="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {visibleEvents.map((event) => {
-                  const soldOut = event.availableStock <= 0;
                   const isEuropean = /uefa|europe|champions/i.test(event.category);
                   return (
                     <article
@@ -517,16 +521,14 @@ export default function EventsPage() {
                               {formatPrice(event.minPrice)}
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            disabled={soldOut}
-                            onClick={() => openEvent(event)}
-                            className={`rounded px-4 py-2.5 font-heading text-sm font-black uppercase tracking-wide shadow-sm transition disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 ${isEuropean ? 'bg-[#fed100] text-[#231b00] hover:brightness-105' : 'bg-[#111111] text-white hover:bg-black'}`}
+                          <a
+                            href={`/evenements/${encodeURIComponent(event.slug)}`}
+                            className={`rounded px-4 py-2.5 font-heading text-sm font-black uppercase tracking-wide shadow-sm transition ${isEuropean ? 'bg-[#fed100] text-[#231b00] hover:brightness-105' : 'bg-[#111111] text-white hover:bg-black'}`}
                           >
-                            {soldOut ? 'Épuisé' : 'Réserver'}
-                          </button>
+                            Découvrir
+                          </a>
                         </div>
-                        {!soldOut && (
+                        {event.availableStock > 0 && (
                           <p className="mt-2 text-right text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
                             {event.availableStock} billet(s) disponible(s)
                           </p>

@@ -4,6 +4,8 @@ import App from './App.tsx';
 import AdminPage from './pages/AdminPage.tsx';
 import EventsPage from './pages/EventsPage.tsx';
 import VerifyPage from './pages/VerifyPage.tsx';
+import HomePage from './pages/HomePage.tsx';
+import EventDetailPage from './pages/EventDetailPage.tsx';
 import './index.css';
 
 /**
@@ -17,7 +19,9 @@ import './index.css';
 function resolvePage(pathname: string) {
   const path = pathname.replace(/\/+$/, '') || '/';
   if (path === '/admin') return <AdminPage />;
-  if (path === '/' || path === '/evenements') return <EventsPage />;
+  if (path === '/') return <HomePage />;
+  if (path === '/evenements') return <EventsPage />;
+  if (path.startsWith('/evenements/')) return <EventDetailPage slug={decodeURIComponent(path.slice('/evenements/'.length))} />;
   if (path === '/verifier') return <VerifyPage />;
   return <App />;
 }
