@@ -1,0 +1,6 @@
+{
+  "name": "Billetterie Officielle RC Lens",
+  "description": "Plateforme officielle de billetterie du Racing Club de Lens au Stade Bollaert-Delelis: réservation en ligne, plan interactif du stade, bourse d'échange et e-billets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
