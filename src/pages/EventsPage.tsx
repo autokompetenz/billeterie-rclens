@@ -16,6 +16,7 @@ import {
   MapPinned,
   Minus,
   Plus,
+  Search,
   ShieldCheck,
   Sparkles,
   Ticket
@@ -46,6 +47,9 @@ export default function EventsPage() {
   const [selected, setSelected] = useState<TicketingEvent | null>(null);
   const [selectedStand, setSelectedStand] = useState<StandId | null>(null);
   const [exploreStand, setExploreStand] = useState<StandId | null>(null);
+  const [eventSearch, setEventSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [eventSort, setEventSort] = useState<'date' | 'price'>('date');
   const [selectedSectorId, setSelectedSectorId] = useState<string | null>(null);
   const [step, setStep] = useState<Step>('catalogue');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -169,6 +173,29 @@ export default function EventsPage() {
   }, [selected]);
 
   const featuredEvent = events.find((event) => event.featured) ?? events[0] ?? null;
+  const eventCategories = useMemo(
+    () => [...new Set(events.map((event) => event.category))].sort((a, b) => a.localeCompare(b, 'fr')),
+    [events]
+  );
+  const visibleEvents = useMemo(() => {
+    const search = eventSearch
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLocaleLowerCase('fr');
+    return events
+      .filter((event) => {
+        const matchesCategory = categoryFilter === 'all' || event.category === categoryFilter;
+        const searchableText = `${event.title} ${event.opponent ?? ''} ${event.venue} ${event.category} ${event.description}`
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLocaleLowerCase('fr');
+        return matchesCategory && (!search || searchableText.includes(search));
+      })
+      .sort((a, b) => eventSort === 'price'
+        ? a.minPrice - b.minPrice || new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime()
+        : new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
+  }, [events, eventSearch, categoryFilter, eventSort]);
 
   const total = useMemo(
     () => lines.reduce((sum, line) => sum + line.type.price * line.quantity, 0),
@@ -371,8 +398,61 @@ export default function EventsPage() {
                 </div>
               )}
 
+              {!loading && !loadError && events.length > 0 && (
+                <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-4">
+                  <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_200px_200px]">
+                    <label className="relative block">
+                      <span className="sr-only">Rechercher un événement</span>
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <input
+                        value={eventSearch}
+                        onChange={(event) => setEventSearch(event.target.value)}
+                        placeholder="Rechercher un match, un lieu…"
+                        className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-900 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-500/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="sr-only">Filtrer par type</span>
+                      <select
+                        value={categoryFilter}
+                        onChange={(event) => setCategoryFilter(event.target.value)}
+                        className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-red-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                      >
+                        <option value="all">Tous les types</option>
+                        {eventCategories.map((category) => <option key={category} value={category}>{category}</option>)}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="sr-only">Trier les événements</span>
+                      <select
+                        value={eventSort}
+                        onChange={(event) => setEventSort(event.target.value as 'date' | 'price')}
+                        className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-red-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                      >
+                        <option value="date">Trier par date</option>
+                        <option value="price">Trier par prix croissant</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-slate-500 dark:text-slate-400">
+                    <span>{visibleEvents.length} événement{visibleEvents.length > 1 ? 's' : ''} affiché{visibleEvents.length > 1 ? 's' : ''}</span>
+                    {(eventSearch || categoryFilter !== 'all' || eventSort !== 'date') && (
+                      <button type="button" onClick={() => { setEventSearch(''); setCategoryFilter('all'); setEventSort('date'); }} className="font-bold text-red-700 hover:underline dark:text-amber-400">Réinitialiser les filtres</button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {!loading && !loadError && events.length > 0 && visibleEvents.length === 0 && (
+                <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
+                  <Search className="mx-auto h-7 w-7 text-slate-300 dark:text-slate-600" />
+                  <p className="mt-3 font-semibold text-slate-700 dark:text-slate-200">Aucun événement ne correspond à ces critères.</p>
+                  <button type="button" onClick={() => { setEventSearch(''); setCategoryFilter('all'); setEventSort('date'); }} className="mt-2 text-sm font-bold text-red-700 hover:underline dark:text-amber-400">Effacer la recherche et les filtres</button>
+                </div>
+              )}
+
               <div className="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {events.map((event) => {
+                {visibleEvents.map((event) => {
                   const soldOut = event.availableStock <= 0;
                   return (
                     <article
