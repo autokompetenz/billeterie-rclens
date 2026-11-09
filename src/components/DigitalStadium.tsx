@@ -1,5 +1,5 @@
-import React from 'react';
-import { Eye, MapPin } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Eye, MapPin, Maximize2, X } from 'lucide-react';
 import { Sector, StandId } from '../types/ticketing';
 
 export interface DigitalStand {
@@ -19,6 +19,8 @@ interface DigitalStadiumProps {
   onSelectStand: (stand: StandId) => void;
   onSelectSector: (sector: Sector) => void;
   showPricing?: boolean;
+  canExpand?: boolean;
+  large?: boolean;
 }
 
 function formatPrice(value: number): string {
@@ -32,10 +34,27 @@ export const DigitalStadium: React.FC<DigitalStadiumProps> = ({
   selectedSectorId,
   onSelectStand,
   onSelectSector,
-  showPricing = true
+  showPricing = true,
+  canExpand = true,
+  large = false
 }) => {
+  const [expanded, setExpanded] = useState(false);
   const stand = (id: StandId) => stands.find((item) => item.id === id)!;
   const activeSectors = sectors.filter((sector) => sector.standId === selectedStand);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const previousOverflow = document.body.style.overflow;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExpanded(false);
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [expanded]);
 
   const standPath = (
     id: StandId,
@@ -86,6 +105,7 @@ export const DigitalStadium: React.FC<DigitalStadiumProps> = ({
   };
 
   return (
+    <>
     <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 text-white shadow-xl">
       <header className="flex flex-col gap-3 border-b border-white/10 px-4 py-4 sm:flex-row sm:items-end sm:justify-between sm:px-6">
         <div>
@@ -95,8 +115,11 @@ export const DigitalStadium: React.FC<DigitalStadiumProps> = ({
           <h2 className="mt-1 font-heading text-2xl font-black uppercase sm:text-3xl">Le stade Bollaert-Delelis</h2>
           <p className="mt-1 text-xs text-white/55">Sélectionnez une tribune pour afficher ses catégories et tarifs.</p>
         </div>
-        <div className="inline-flex items-center gap-2 self-start rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-semibold text-white/65 sm:self-auto">
-          <MapPin className="h-3.5 w-3.5 text-amber-300" /> Lens · France
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-semibold text-white/65">
+            <MapPin className="h-3.5 w-3.5 text-amber-300" /> Lens · France
+          </div>
+          {canExpand && <button type="button" onClick={() => setExpanded(true)} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-amber-300/40 bg-amber-300/10 px-3 text-[10px] font-black uppercase tracking-wider text-amber-200 transition hover:bg-amber-300/20"><Maximize2 className="h-3.5 w-3.5" /> Agrandir le stade</button>}
         </div>
       </header>
 
@@ -109,7 +132,7 @@ export const DigitalStadium: React.FC<DigitalStadiumProps> = ({
           viewBox="0 0 900 590"
           role="img"
           aria-label="Maquette numérique en perspective du stade Bollaert-Delelis. Les quatre tribunes sont sélectionnables."
-          className="relative z-10 mx-auto block w-full max-w-[820px] drop-shadow-2xl"
+          className={`relative z-10 mx-auto block w-full ${large ? 'max-w-[1120px]' : 'max-w-[820px]'} drop-shadow-2xl`}
         >
           <defs>
             <linearGradient id="bowlConcrete" x1="0" y1="0" x2="0.8" y2="1">
@@ -234,5 +257,19 @@ export const DigitalStadium: React.FC<DigitalStadiumProps> = ({
         )}
       </div>
     </section>
+    {expanded && canExpand && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/90 p-2 backdrop-blur-sm sm:p-5" role="dialog" aria-modal="true" aria-label="Vue agrandie du stade Bollaert-Delelis">
+        <div className="flex max-h-[96dvh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl border border-white/15 bg-slate-950 shadow-2xl">
+          <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3 sm:px-6">
+            <div><div className="text-[10px] font-bold uppercase tracking-[.2em] text-amber-300">Plan interactif</div><h2 className="font-heading text-lg font-black uppercase text-white sm:text-xl">Stade Bollaert-Delelis · grande vue</h2></div>
+            <button type="button" autoFocus onClick={() => setExpanded(false)} className="inline-flex h-10 items-center gap-2 rounded-lg border border-white/15 px-3 text-xs font-bold text-white hover:bg-white/10" aria-label="Fermer la grande vue"><X className="h-4 w-4" /><span className="hidden sm:inline">Fermer</span></button>
+          </div>
+          <div className="overflow-y-auto p-2 sm:p-4">
+            <DigitalStadium stands={stands} sectors={sectors} selectedStand={selectedStand} selectedSectorId={selectedSectorId} onSelectStand={onSelectStand} onSelectSector={onSelectSector} showPricing={showPricing} canExpand={false} large />
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
