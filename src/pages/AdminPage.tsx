@@ -537,6 +537,21 @@ export default function AdminPage() {
     }
   }
 
+  async function removeOrder(orderNumber: string) {
+    if (
+      !window.confirm(
+        `Supprimer définitivement la commande ${orderNumber} et tous les billets qui lui sont associés ? Cette action est irréversible.`
+      )
+    ) return;
+    try {
+      await adminApi.deleteOrder(orderNumber);
+      setOrderDetail(null);
+      await loadAll();
+    } catch (error) {
+      setDataError(getErrorMessage(error));
+    }
+  }
+
   async function openOrder(orderNumber: string) {
     setOrderLoading(true);
     setOrderDetail(null);
@@ -1696,6 +1711,14 @@ export default function AdminPage() {
                       </div>
                     </div>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => void removeOrder(orderDetail.orderNumber)}
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Supprimer la commande et ses billets
+                  </button>
 
                   <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
                     <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/60">

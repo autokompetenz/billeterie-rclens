@@ -905,6 +905,34 @@ adminRouter.get(
   })
 );
 
+adminRouter.delete(
+  '/admin/orders/:orderNumber',
+  asyncHandler(async (req, res) => {
+    const orderNumber = req.params.orderNumber.trim().toUpperCase();
+    const guestOrder = await queryOne<{ id: string }>(
+      'SELECT id FROM guest_orders WHERE UPPER(order_number) = $1',
+      [orderNumber]
+    );
+    if (guestOrder) {
+      await withTransaction(async (tx) => {
+        await tx.execute('DELETE FROM guest_orders WHERE id = $1', [guestOrder.id]);
+      });
+      res.json({ success: true });
+      return;
+    }
+
+    const legacyOrder = await queryOne<{ id: string }>(
+      'SELECT id FROM orders WHERE UPPER(id) = $1',
+      [orderNumber]
+    );
+    if (!legacyOrder) throw notFound('Commande introuvable.');
+    await withTransaction(async (tx) => {
+      await tx.execute('DELETE FROM orders WHERE id = $1', [legacyOrder.id]);
+    });
+    res.json({ success: true });
+  })
+);
+
 /* ------------------------------------------------------------------ */
 /* Contrôle d'accès (check-in)                                         */
 /* ------------------------------------------------------------------ */

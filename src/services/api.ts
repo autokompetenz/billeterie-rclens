@@ -480,6 +480,12 @@ export const adminApi = {
     });
   },
 
+  deleteOrder(orderNumber: string): Promise<{ success: boolean }> {
+    return request(`/admin/orders/${encodeURIComponent(orderNumber)}`, {
+      method: 'DELETE'
+    });
+  },
+
   uploadEventImage(dataUrl: string): Promise<{ id: string; url: string }> {
     return request('/admin/images', {
       method: 'POST',
