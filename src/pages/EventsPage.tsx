@@ -100,6 +100,7 @@ export default function EventsPage() {
   ];
   const standPrices = (standId: StandId) =>
     selected?.ticketTypes.filter((type) => type.standId === standId && type.active && type.available > 0) ?? [];
+  const featuredEvent = events.find((event) => event.featured) ?? events[0] ?? null;
 
   const total = useMemo(
     () => lines.reduce((sum, line) => sum + line.type.price * line.quantity, 0),
@@ -175,45 +176,85 @@ export default function EventsPage() {
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-12">
         {step === 'catalogue' && (
           <>
-            <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-red-700 via-red-800 to-slate-950 p-5 text-white shadow-xl sm:p-10">
-              <div className="inline-flex items-center gap-2 rounded-full bg-amber-400/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-amber-300">
-                <Sparkles className="h-3.5 w-3.5" />
-                Billets à l’unité · sans compte
+            <section className="relative isolate overflow-hidden rounded-[1.75rem] bg-slate-950 text-white shadow-2xl shadow-red-950/20">
+              <img
+                src="/images/hero_bollaert_atmosphere_1794048534296.jpg"
+                alt="L’ambiance des tribunes du stade Bollaert-Delelis"
+                className="absolute inset-0 -z-20 h-full w-full object-cover object-center"
+              />
+              <div className="absolute inset-0 -z-10 bg-gradient-to-r from-slate-950 via-slate-950/85 to-slate-950/30" />
+              <div className="absolute inset-0 -z-10 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/10" />
+              <div className="grid min-h-[560px] items-center gap-10 px-5 py-10 sm:px-10 sm:py-14 lg:min-h-[600px] lg:grid-cols-[1.15fr_.85fr] lg:px-14">
+                <div className="max-w-2xl">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-slate-950/50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-amber-300 backdrop-blur sm:text-xs">
+                    <Sparkles className="h-3.5 w-3.5" /> Une passion, un stade, une histoire
+                  </div>
+                  <h1 className="mt-5 font-heading text-5xl font-black uppercase leading-[0.9] tracking-tight sm:text-7xl lg:text-8xl">
+                    Bollaert<br />
+                    <span className="text-amber-400">vous attend.</span>
+                  </h1>
+                  <p className="mt-5 max-w-xl text-sm leading-relaxed text-white/80 sm:text-lg">
+                    Vivez le RC Lens au plus près. Choisissez votre événement et votre tribune, puis réservez vos billets en quelques étapes, sans créer de compte.
+                  </p>
+                  <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                    <a href="#evenements" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-amber-400 px-5 py-3 text-sm font-black uppercase tracking-wide text-slate-950 shadow-lg shadow-amber-950/20 transition hover:bg-amber-300">
+                      <Ticket className="h-4 w-4" /> Découvrir les événements
+                    </a>
+                    <a href="/verifier" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-white/25 bg-white/10 px-5 py-3 text-sm font-bold text-white backdrop-blur transition hover:bg-white/15">
+                      <ShieldCheck className="h-4 w-4" /> Retrouver ma commande
+                    </a>
+                  </div>
+                </div>
+
+                <div className="w-full max-w-md justify-self-end">
+                  <div className="rounded-2xl border border-white/15 bg-slate-950/60 p-5 shadow-2xl backdrop-blur-md sm:p-6">
+                    <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4">
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-300">À l’affiche</div>
+                        <div className="mt-1 font-heading text-xl font-black uppercase">Le prochain rendez-vous</div>
+                      </div>
+                      <CalendarDays className="h-7 w-7 text-amber-400" />
+                    </div>
+                    {featuredEvent ? (
+                      <>
+                        <div className="mt-5 text-2xl font-black leading-tight sm:text-3xl">{featuredEvent.title}</div>
+                        <div className="mt-3 space-y-2 text-sm text-white/75">
+                          <div className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-amber-400" />{featuredEvent.formattedDate}</div>
+                          <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-amber-400" />{featuredEvent.venue}</div>
+                        </div>
+                        <div className="mt-6 flex items-end justify-between gap-3 border-t border-white/10 pt-4">
+                          <div><div className="text-[10px] font-bold uppercase tracking-widest text-white/50">À partir de</div><div className="font-heading text-3xl font-black text-amber-300">{formatPrice(featuredEvent.minPrice)}</div></div>
+                          <button type="button" onClick={() => openEvent(featuredEvent)} disabled={featuredEvent.availableStock <= 0} className="rounded-lg bg-red-700 px-4 py-3 text-sm font-black uppercase tracking-wide text-white transition hover:bg-red-600 disabled:bg-slate-700">{featuredEvent.availableStock <= 0 ? 'Complet' : 'Réserver'}</button>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="mt-5 text-sm leading-relaxed text-white/70">{loading ? 'Nous recherchons les prochains événements…' : 'Les prochains événements seront bientôt annoncés.'}</p>
+                    )}
+                  </div>
+                  <div className="mt-3 flex items-center justify-end gap-2 text-[10px] font-semibold uppercase tracking-widest text-white/60"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Billetterie ouverte selon disponibilité</div>
+                </div>
               </div>
-              <h1 className="mt-4 max-w-4xl font-heading text-3xl font-black uppercase leading-tight sm:text-5xl sm:leading-none lg:text-6xl">
-                Vivez l’émotion <span className="text-amber-400">Sang et Or</span>
-              </h1>
-              <p className="mt-4 max-w-2xl text-sm text-white/80 sm:text-base">
-                Choisissez votre événement, réservez vos billets en quelques clics et
-                recevez immédiatement votre bon de commande par e-mail. Aucun compte
-                n’est nécessaire.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-3 text-xs font-semibold text-white/80">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5">
-                  <ShieldCheck className="h-4 w-4 text-amber-400" /> Commande sécurisée
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5">
-                  <Mail className="h-4 w-4 text-amber-400" /> Confirmation par e-mail
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5">
-                  <Ticket className="h-4 w-4 text-amber-400" /> Vérification par bon de commande
-                </span>
+              <div className="grid grid-cols-1 border-t border-white/10 bg-slate-950/70 backdrop-blur-sm sm:grid-cols-3">
+                <div className="flex items-center gap-3 px-5 py-4 sm:px-8"><Ticket className="h-5 w-5 text-amber-400" /><div><div className="text-sm font-bold">À l’unité</div><div className="text-[11px] text-white/55">Choisissez vos billets</div></div></div>
+                <div className="flex items-center gap-3 border-white/10 px-5 py-4 sm:border-x sm:px-8"><ShieldCheck className="h-5 w-5 text-amber-400" /><div><div className="text-sm font-bold">Sans compte</div><div className="text-[11px] text-white/55">Une réservation en quelques étapes</div></div></div>
+                <div className="flex items-center gap-3 px-5 py-4 sm:px-8"><Mail className="h-5 w-5 text-amber-400" /><div><div className="text-sm font-bold">Suivi par e-mail</div><div className="text-[11px] text-white/55">Votre bon de commande vous accompagne</div></div></div>
               </div>
             </section>
 
-            <section className="mt-8">
-              <div className="flex items-end justify-between gap-4">
+            <section id="evenements" className="mt-14 scroll-mt-28 sm:mt-20">
+              <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 dark:border-slate-800 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <h2 className="font-heading text-2xl font-black uppercase tracking-tight text-slate-900 dark:text-white sm:text-3xl">
-                    Prochains événements
+                  <div className="text-[10px] font-black uppercase tracking-[0.22em] text-red-700 dark:text-amber-400">Le calendrier Sang et Or</div>
+                  <h2 className="mt-1 font-heading text-3xl font-black uppercase tracking-tight text-slate-900 dark:text-white sm:text-4xl">
+                    Tous les événements
                   </h2>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    Matchs, visites et expériences à Bollaert-Delelis.
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 sm:text-base">
+                    Matchs, visites et expériences disponibles à la réservation.
                   </p>
                 </div>
                 <a
                   href="/verifier"
-                  className="hidden items-center gap-1.5 text-sm font-semibold text-red-700 hover:underline dark:text-amber-400 sm:flex"
+                  className="inline-flex w-fit items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 transition hover:border-red-300 hover:text-red-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:text-amber-300"
                 >
                   <ShieldCheck className="h-4 w-4" /> Vérifier une commande
                 </a>
@@ -241,20 +282,20 @@ export default function EventsPage() {
                 </div>
               )}
 
-              <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {events.map((event) => {
                   const soldOut = event.availableStock <= 0;
                   return (
                     <article
                       key={event.id}
-                      className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900"
+                      className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:border-red-200 hover:shadow-xl dark:border-slate-800 dark:bg-slate-900 dark:hover:border-red-900"
                     >
-                      <div className="relative h-40 overflow-hidden bg-slate-200 dark:bg-slate-800">
+                      <div className="relative h-48 overflow-hidden bg-slate-200 dark:bg-slate-800 sm:h-52">
                         {event.imageUrl ? (
                           <img
                             src={event.imageUrl}
                             alt={event.title}
-                            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                            className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
                           />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-red-700 to-slate-950">
