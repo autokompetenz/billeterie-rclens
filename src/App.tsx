@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Match,
   StandId,
@@ -10,13 +10,9 @@ import {
   OrderAddons,
   TariffType,
   TourPackage,
-  AuthUser
 } from './types/ticketing';
 import {
   ticketingApi,
-  authApi,
-  getStoredToken,
-  clearStoredToken,
   getErrorMessage
 } from './services/api';
 import { Navbar } from './components/Navbar';
@@ -32,7 +28,6 @@ import { StadiumTours } from './components/StadiumTours';
 import { AnthemPlayer } from './components/AnthemPlayer';
 import { MatchCard } from './components/MatchCard';
 import { Footer } from './components/Footer';
-import { AuthModal } from './components/AuthModal';
 import {
   Calendar,
   Clock,
@@ -97,10 +92,6 @@ export default function App() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // User Auth & Backend Docs Modal
-  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [pendingCheckout, setPendingCheckout] = useState(false);
-  const pendingItemsRef = useRef<Omit<CartItem, 'id'>[] | null>(null);
   const [showApiDocs, setShowApiDocs] = useState(false);
   const [orderConfirmation, setOrderConfirmation] = useState<{
     orderId: string;
@@ -160,47 +151,6 @@ export default function App() {
       cancelled = true;
     };
   }, []);
-
-  // Restauration de la session utilisateur au chargement
-  useEffect(() => {
-    if (!getStoredToken()) return;
-    let cancelled = false;
-
-    authApi
-      .me()
-      .then((user) => {
-        if (!cancelled) setAuthUser(user);
-      })
-      .catch(() => {
-        clearStoredToken();
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Chargement des e-billets dès qu'un supporter est connecté
-  useEffect(() => {
-    if (!authUser) {
-      setMyTickets([]);
-      return;
-    }
-
-    let cancelled = false;
-    ticketingApi
-      .getMyTickets()
-      .then((tickets) => {
-        if (!cancelled) setMyTickets(tickets);
-      })
-      .catch(() => {
-        /* silencieux : le catalogue reste utilisable */
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [authUser]);
 
   // Compte à rebours synchronisé sur l'expiration réelle du blocage serveur
   useEffect(() => {
@@ -299,11 +249,6 @@ export default function App() {
   };
 
   const handleAddToCart = async (newItems: Omit<CartItem, 'id'>[]) => {
-    if (!authUser) {
-      pendingItemsRef.current = newItems;
-      setIsAuthOpen(true);
-      return;
-    }
     await applyItems(newItems);
   };
 
@@ -475,60 +420,6 @@ export default function App() {
     }
   };
 
-  // Actions différées après connexion (ajout au panier ou paiement)
-  const runPendingActions = async () => {
-    const pendingItems = pendingItemsRef.current;
-    pendingItemsRef.current = null;
-
-    let effectiveCart = cart;
-
-    if (pendingItems && pendingItems.length > 0) {
-      try {
-        effectiveCart = await applyItems(pendingItems);
-      } catch (error) {
-        alert(getErrorMessage(error));
-      }
-    }
-
-    if (pendingCheckout) {
-      setPendingCheckout(false);
-      if (effectiveCart.length > 0) setIsCheckoutOpen(true);
-    }
-  };
-
-  const handleLogin = async (email: string, password: string) => {
-    const session = await authApi.login(email, password);
-    setAuthUser(session.user);
-    await runPendingActions();
-  };
-
-  const handleRegister = async (name: string, email: string, password: string) => {
-    const session = await authApi.register(name, email, password);
-    setAuthUser(session.user);
-    await runPendingActions();
-  };
-
-  const handleLogout = async () => {
-    if (holdId) {
-      try {
-        await ticketingApi.releaseHold(holdId);
-      } catch {
-        /* ignore */
-      }
-    }
-    try {
-      await authApi.logout();
-    } catch {
-      /* le jeton local est déjà effacé */
-    }
-    setAuthUser(null);
-    setMyTickets([]);
-    setCart([]);
-    setHoldId(null);
-    setHoldExpiresAt(null);
-    setTimeLeft(DEFAULT_HOLD_SECONDS);
-  };
-
   // Filtered Matches
   const filteredMatches = matches.filter((m) => {
     if (selectedCompetitionFilter === 'all') return true;
@@ -549,8 +440,6 @@ export default function App() {
         cart={cart}
         setIsCartOpen={setIsCartOpen}
         timeLeft={timeLeft}
-        onOpenAuth={() => setIsAuthOpen(true)}
-        userName={authUser?.name ?? null}
         theme={theme}
         toggleTheme={toggleTheme}
       />
@@ -954,7 +843,7 @@ export default function App() {
         )}
 
         {/* VIEW 3: ABONNEMENTS */}
-        {activeTab === 'season' && <SeasonTickets defaultEmail={authUser?.email} />}
+        {activeTab === 'season' && <SeasonTickets />}
 
         {/* VIEW 4: VISITES & VIP */}
         {activeTab === 'tours' && <StadiumTours onAddToCart={handleAddToCart} tours={tours} />}
@@ -968,7 +857,7 @@ export default function App() {
                   Mes Billets &amp; E-Pass
                 </h1>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Retrouvez vos titres d&apos;accès officiels pour le Stade Bollaert-Delelis, téléchargez vos e-billets ou cédez-les en toute sécurité.
+                  Consultez vos billets confirmés et téléchargez vos e-billets. Un récapitulatif est également envoyé par e-mail.
                 </p>
               </div>
 
@@ -980,30 +869,14 @@ export default function App() {
               </button>
             </div>
 
-            {!authUser ? (
+            {myTickets.length === 0 ? (
               <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
                 <Ticket className="w-12 h-12 text-slate-400 dark:text-slate-500 mx-auto mb-3" />
                 <h3 className="font-heading text-lg font-bold uppercase text-slate-900 dark:text-white">
-                  Connectez-vous pour retrouver vos billets
+                  Vos billets seront envoyés par e-mail
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
-                  Vos e-billets sont rattachés à votre compte supporter RC Lens.
-                </p>
-                <button
-                  onClick={() => setIsAuthOpen(true)}
-                  className="mt-5 px-6 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-heading font-extrabold text-xs uppercase tracking-wider cursor-pointer shadow-md"
-                >
-                  Me connecter
-                </button>
-              </div>
-            ) : myTickets.length === 0 ? (
-              <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-                <Ticket className="w-12 h-12 text-slate-400 dark:text-slate-500 mx-auto mb-3" />
-                <h3 className="font-heading text-lg font-bold uppercase text-slate-900 dark:text-white">
-                  Aucun billet actif pour le moment
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
-                  Vos prochains billets de match apparaîtront ici dès confirmation de votre commande.
+                  Après votre commande, les billets s’afficheront ici et un e-mail avec un lien de vérification sera envoyé à l’adresse indiquée.
                 </p>
                 <button
                   onClick={() => setActiveTab('matches')}
@@ -1015,12 +888,7 @@ export default function App() {
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {myTickets.map((t) => (
-                  <ETicketCard
-                    key={t.id}
-                    ticket={t}
-                    onListForResale={handleListTicketForResale}
-                    onTransfer={handleTransferTicket}
-                  />
+                  <ETicketCard key={t.id} ticket={t} />
                 ))}
               </div>
             )}
@@ -1061,11 +929,6 @@ export default function App() {
         onProceedToCheckout={() => {
           if (cart.length === 0) return;
           setIsCartOpen(false);
-          if (!authUser) {
-            setPendingCheckout(true);
-            setIsAuthOpen(true);
-            return;
-          }
           setIsCheckoutOpen(true);
         }}
       />
@@ -1077,22 +940,6 @@ export default function App() {
         cart={cart}
         addons={addons}
         onOrderSuccess={handleOrderSuccess}
-        buyerName={authUser?.name}
-        buyerEmail={authUser?.email}
-      />
-
-      {/* Supporter Auth Modal */}
-      <AuthModal
-        isOpen={isAuthOpen}
-        onClose={() => {
-          setIsAuthOpen(false);
-          pendingItemsRef.current = null;
-          setPendingCheckout(false);
-        }}
-        user={authUser}
-        onLogin={handleLogin}
-        onRegister={handleRegister}
-        onLogout={handleLogout}
       />
 
       {/* Developer Backend Architecture Modal */}

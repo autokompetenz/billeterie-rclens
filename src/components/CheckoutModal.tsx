@@ -24,18 +24,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 }) => {
   const [step, setStep] = useState<'info' | 'payment' | 'processing'>('info');
   const [buyerInfo, setBuyerInfo] = useState({
-    firstName: 'Alexandre',
-    lastName: 'Dupont',
-    email: 'supporter@rclens.fr',
-    phone: '06 12 34 56 78',
-    termsAccepted: true
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    termsAccepted: false
   });
 
   const [paymentDetails, setPaymentDetails] = useState({
-    cardNumber: '4970 •••• •••• 4242',
-    expiry: '08/28',
-    cvv: '921',
-    cardholder: 'ALEXANDRE DUPONT'
+    cardNumber: '',
+    expiry: '',
+    cvv: '',
+    cardholder: ''
   });
 
   const [promoCodeInput, setPromoCodeInput] = useState('');
@@ -47,16 +47,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   // Pré-remplit les coordonnées avec le compte connecté à chaque ouverture
   useEffect(() => {
     if (!isOpen) return;
-    const parts = (buyerName || 'Alexandre Dupont').split(' ');
+    const parts = (buyerName || '').split(' ');
     setBuyerInfo((prev) => ({
       ...prev,
-      firstName: parts[0] || 'Alexandre',
-      lastName: parts.slice(1).join(' ') || 'Dupont',
-      email: buyerEmail || 'supporter@rclens.fr'
+      firstName: parts[0] || '',
+      lastName: parts.slice(1).join(' '),
+      email: buyerEmail || '',
+      phone: '',
+      termsAccepted: false
     }));
     setPaymentDetails((prev) => ({
       ...prev,
-      cardholder: (buyerName || 'ALEXANDRE DUPONT').toUpperCase()
+      cardholder: (buyerName || '').toUpperCase()
     }));
     setStep('info');
     setError(null);
@@ -101,7 +103,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         addons,
         {
           cardholder: `${buyerInfo.firstName} ${buyerInfo.lastName}`.trim(),
-          email: buyerInfo.email
+          email: buyerInfo.email,
+          phone: buyerInfo.phone
         },
         appliedPromoCode ?? undefined
       );
@@ -201,7 +204,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Adresse e-mail (Réception des e-billets PDF)
+                    Adresse e-mail (confirmation et e-billets)
                 </label>
                 <input
                   type="email"
@@ -214,7 +217,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Téléphone mobile (SMS d&apos;accès stade)
+                    Téléphone (facultatif)
                 </label>
                 <input
                   type="tel"
@@ -274,7 +277,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </label>
 
               <button
-                disabled={!buyerInfo.termsAccepted || !buyerInfo.email}
+                disabled={
+                  !buyerInfo.termsAccepted ||
+                  !buyerInfo.firstName.trim() ||
+                  !buyerInfo.lastName.trim() ||
+                  !buyerInfo.email.trim()
+                }
                 onClick={() => setStep('payment')}
                 className="w-full mt-4 py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-heading font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
               >

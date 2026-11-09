@@ -176,7 +176,9 @@ Le montant est stocké en **centimes** dans PostgreSQL et converti en euros aux 
 
 ### Application historique — `/`
 
-Matchs, plan interactif du stade, pré-réservation, panier, paiement simulé, e-billets, cession, bourse d'échange et liste d'attente restent disponibles et s'appuient sur les mêmes tables PostgreSQL.
+Matchs, plan interactif du stade, pré-réservation, panier, paiement simulé et liste d'attente sont accessibles sans compte. Au paiement, le client renseigne son nom, son e-mail et éventuellement son téléphone. La commande est rattachée à un identifiant invité du navigateur, puis le client et l'adresse d'administration reçoivent un e-mail de confirmation/notification. Le numéro `CMD-RCL-…` permet de vérifier les billets sur `/verifier`.
+
+Les réservations invitées utilisent l'en-tête `X-Guest-Id` généré et conservé par le navigateur. Pour envoyer les e-mails, configurez `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` et `ADMIN_EMAIL`. Sans configuration SMTP, les messages sont consignés dans les logs et dans `email_log` mais ne sont pas délivrés.
 
 ---
 
@@ -268,13 +270,13 @@ Réponse (extrait) :
 
 La connexion renvoie `{ token, expiresAt, user }`. Les sessions durent **30 jours**.
 
-### Pré-réservation et commande (compte)
+### Pré-réservation et commande sans compte
 
 | Méthode | Route | Corps | Description |
 | --- | --- | --- | --- |
-| `POST` | `/holds` 🔒 | `{ seatIds: string[] }` | Bloque les places pendant 15 minutes |
-| `DELETE` | `/holds/:id` 🔒 | — | Libère une pré-réservation |
-| `POST` | `/orders` 🔒 | voir ci-dessous | Crée la commande et les e-billets |
+| `POST` | `/holds` | `{ seatIds: string[] }` | Bloque les places pendant 15 minutes (`X-Guest-Id`) |
+| `DELETE` | `/holds/:id` | — | Libère une pré-réservation (`X-Guest-Id`) |
+| `POST` | `/orders` | voir ci-dessous | Crée la commande et envoie les e-mails client/admin |
 | `GET` | `/tickets/my` 🔒 | — | Billets de l'utilisateur |
 | `POST` | `/tickets/:id/transfer` 🔒 | `{ recipientName }` | Cession nominative |
 | `POST` | `/resale/list` 🔒 | `{ ticketId }` | Met un billet en vente |

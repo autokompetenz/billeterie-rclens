@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto';
 import { Router } from 'express';
-import { getRequestUser, requireAuth } from './auth.ts';
+import { getRequestUser, optionalAuth, requireAuth } from './auth.ts';
 import {
   addMinutes,
   centsToEuros,
@@ -25,11 +25,24 @@ import {
   asyncHandler
 } from './http.ts';
 import { ADDON_PRICES, PROMO_CODES } from './seed-data.ts';
+import { sendOrderEmails } from './mailer.ts';
 
 export const commerceRouter = Router();
 
 const MAX_ITEMS_PER_ORDER = 10;
 const HOLD_MINUTES = 15;
+
+function commerceOwnerId(req: import('express').Request): string {
+  if (req.user) return req.user.id;
+  const guestId = requireString(req.header('x-guest-id'), 'session invité', {
+    min: 36,
+    max: 36
+  });
+  if (!/^[0-9a-f-]{36}$/i.test(guestId)) {
+    throw badRequest('Session invité invalide. Rechargez la page.', 'INVALID_GUEST_SESSION');
+  }
+  return `guest:${guestId}`;
+}
 
 type Tariff = 'full' | 'u16' | 'student';
 
@@ -78,7 +91,7 @@ interface ListingRow {
 interface TicketRow {
   id: string;
   order_id: string;
-  user_id: string;
+  user_id: string | null;
   ticket_number: string;
   match_id: string;
   opponent: string;
@@ -198,9 +211,9 @@ async function releaseUserHolds(tx: Queryable, userId: string): Promise<void> {
 
 commerceRouter.post(
   '/holds',
-  requireAuth,
+  optionalAuth,
   asyncHandler(async (req, res) => {
-    const user = getRequestUser(req);
+    const ownerId = commerceOwnerId(req);
     const rawSeatIds = req.body?.seatIds;
 
     if (!Array.isArray(rawSeatIds) || rawSeatIds.length === 0) {
@@ -222,7 +235,7 @@ commerceRouter.post(
 
     const result = await withTransaction(async (tx) => {
       await releaseExpiredHolds(tx);
-      await releaseUserHolds(tx, user.id);
+      await releaseUserHolds(tx, ownerId);
 
       const seats = await tx.query<SeatRow>(
         'SELECT * FROM seats WHERE id = ANY($1::text[]) FOR UPDATE',
@@ -254,7 +267,7 @@ commerceRouter.post(
 
       await tx.execute(
         'INSERT INTO holds (id, user_id, created_at, expires_at) VALUES ($1,$2,$3,$4)',
-        [holdId, user.id, isoNow(), expiresAt]
+        [holdId, ownerId, isoNow(), expiresAt]
       );
 
       for (const seat of seats) {
@@ -264,7 +277,7 @@ commerceRouter.post(
         );
         const changes = await tx.execute(
           "UPDATE seats SET status = 'held', held_by = $1, held_until = $2 WHERE id = $3 AND status = 'available'",
-          [user.id, expiresAt, seat.id]
+          [ownerId, expiresAt, seat.id]
         );
         if (changes !== 1) {
           throw conflict(
@@ -283,9 +296,9 @@ commerceRouter.post(
 
 commerceRouter.delete(
   '/holds/:id',
-  requireAuth,
+  optionalAuth,
   asyncHandler(async (req, res) => {
-    const user = getRequestUser(req);
+    const ownerId = commerceOwnerId(req);
 
     await withTransaction(async (tx) => {
       const hold = await tx.queryOne<{ id: string; user_id: string }>(
@@ -294,11 +307,11 @@ commerceRouter.delete(
       );
 
       if (!hold) return;
-      if (hold.user_id !== user.id) throw forbidden();
+      if (hold.user_id !== ownerId) throw forbidden();
 
       await tx.execute(
         "UPDATE seats SET status = 'available', held_by = NULL, held_until = NULL WHERE status = 'held' AND held_by = $1",
-        [user.id]
+        [ownerId]
       );
       await tx.execute('DELETE FROM holds WHERE id = $1', [hold.id]);
     });
@@ -329,9 +342,10 @@ interface TicketDraft {
 
 commerceRouter.post(
   '/orders',
-  requireAuth,
+  optionalAuth,
   asyncHandler(async (req, res) => {
-    const user = getRequestUser(req);
+    const ownerId = commerceOwnerId(req);
+    const userId = req.user?.id ?? null;
     const body = req.body ?? {};
     const items = body.items;
 
@@ -351,6 +365,7 @@ commerceRouter.post(
       { min: 2, max: 120 }
     );
     const buyerEmail = requireEmail(body?.payment?.email);
+    const buyerPhone = optionalString(body?.payment?.phone, 40);
     const promoInput = optionalString(body?.promoCode, 32);
     const promoCode = promoInput ? promoInput.toUpperCase() : undefined;
 
@@ -391,7 +406,7 @@ commerceRouter.post(
 
           if (!seat) throw notFound('Place introuvable.');
 
-          const heldByUser = seat.status === 'held' && seat.held_by === user.id;
+          const heldByUser = seat.status === 'held' && seat.held_by === ownerId;
           if (seat.status !== 'available' && !heldByUser) {
             throw conflict(
               `La place ${seat.sector_name} rang ${seat.row_num} siège ${seat.seat_num} n'est plus disponible.`,
@@ -429,7 +444,7 @@ commerceRouter.post(
               'LISTING_UNAVAILABLE'
             );
           }
-          if (listing.seller_id === user.id) {
+          if (listing.seller_id === userId) {
             throw badRequest(
               'Vous ne pouvez pas acheter votre propre billet.',
               'OWN_LISTING'
@@ -531,7 +546,7 @@ commerceRouter.post(
          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'paid',$11)`,
         [
           orderId,
-          user.id,
+          userId,
           cardholder,
           buyerEmail,
           ticketsTotalCents,
@@ -560,7 +575,7 @@ commerceRouter.post(
         const row: TicketRow = {
           id: newId('tkt'),
           order_id: orderId,
-          user_id: user.id,
+          user_id: userId,
           ticket_number: ticketNumber,
           match_id: draft.matchId,
           opponent: draft.opponent,
@@ -616,7 +631,7 @@ commerceRouter.post(
       for (const seatId of soldSeatIds) {
         const changes = await tx.execute(
           "UPDATE seats SET status = 'occupied', held_by = NULL, held_until = NULL WHERE id = $1 AND (status = 'available' OR (status = 'held' AND held_by = $2))",
-          [seatId, user.id]
+          [seatId, ownerId]
         );
         if (changes !== 1) {
           throw conflict(
@@ -628,9 +643,9 @@ commerceRouter.post(
 
       await tx.execute(
         "UPDATE seats SET status = 'available', held_by = NULL, held_until = NULL WHERE status = 'held' AND held_by = $1",
-        [user.id]
+        [ownerId]
       );
-      await tx.execute('DELETE FROM holds WHERE user_id = $1', [user.id]);
+      await tx.execute('DELETE FROM holds WHERE user_id = $1', [ownerId]);
 
       return {
         success: true,
@@ -642,6 +657,28 @@ commerceRouter.post(
       };
     });
 
+    const firstTicket = result.tickets[0];
+    if (firstTicket) {
+      await sendOrderEmails({
+        orderNumber: result.orderId,
+        eventTitle: firstTicket.competition.includes('Visites')
+          ? firstTicket.opponent
+          : `RC Lens – ${firstTicket.opponent}`,
+        eventDate: `${firstTicket.date} ${firstTicket.time}`.trim(),
+        venue: 'Stade Bollaert-Delelis',
+        buyerName: cardholder,
+        buyerEmail,
+        buyerPhone,
+        totalCents: Math.round(result.total * 100),
+        createdAt: new Date().toISOString(),
+        tickets: result.tickets.map((ticket) => ({
+          code: ticket.ticketNumber,
+          typeName: `${ticket.standName} · ${ticket.sectorName}`,
+          beneficiaryName: ticket.beneficiaryName,
+          priceCents: Math.round(ticket.price * 100)
+        }))
+      });
+    }
     res.status(201).json(result);
   })
 );

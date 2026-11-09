@@ -543,6 +543,76 @@ eventsRouter.get(
   asyncHandler(async (req, res) => {
     const order = await findOrderByNumber(req.params.orderNumber);
     if (!order) {
+      const legacyOrder = await queryOne<{
+        id: string;
+        buyer_name: string;
+        buyer_email: string;
+        total_cents: number;
+        status: string;
+        created_at: string | Date;
+      }>('SELECT id, buyer_name, buyer_email, total_cents, status, created_at FROM orders WHERE UPPER(id) = $1', [
+        req.params.orderNumber.trim().toUpperCase()
+      ]);
+      if (legacyOrder) {
+        const legacyTickets = await query<{
+          ticket_number: string;
+          opponent: string;
+          match_id: string;
+          match_date: string;
+          kickoff: string;
+          competition: string;
+          stand_name: string;
+          sector_name: string;
+          beneficiary_name: string;
+          price_cents: number;
+          status: string;
+        }>(
+          `SELECT ticket_number, opponent, match_id, match_date, kickoff, competition,
+                  stand_name, sector_name, beneficiary_name, price_cents, status
+             FROM tickets WHERE order_id = $1 ORDER BY id`,
+          [legacyOrder.id]
+        );
+        const first = legacyTickets[0];
+        res.json({
+          found: true,
+          orderNumber: legacyOrder.id,
+          status: legacyOrder.status,
+          createdAt: legacyOrder.created_at instanceof Date
+            ? legacyOrder.created_at.toISOString()
+            : new Date(legacyOrder.created_at).toISOString(),
+          total: centsToEuros(legacyOrder.total_cents),
+          event: first ? {
+            id: first.match_id,
+            title: first.competition.includes('Visites') ? first.opponent : `RC Lens – ${first.opponent}`,
+            formattedDate: formatEventDate(`${first.match_date} ${first.kickoff}`),
+            venue: 'Stade Bollaert-Delelis'
+          } : null,
+          buyer: {
+            name: maskName(legacyOrder.buyer_name),
+            email: maskEmail(legacyOrder.buyer_email)
+          },
+          items: legacyTickets.map((ticket) => ({
+            name: `${ticket.stand_name} · ${ticket.sector_name}`,
+            quantity: 1,
+            unitPrice: centsToEuros(ticket.price_cents)
+          })),
+          tickets: legacyTickets.map((ticket) => ({
+            code: ticket.ticket_number,
+            typeName: `${ticket.stand_name} · ${ticket.sector_name}`,
+            beneficiaryName: maskName(ticket.beneficiary_name),
+            price: centsToEuros(ticket.price_cents),
+            status: ticket.status,
+            checkedInAt: null
+          })),
+          summary: {
+            total: legacyTickets.length,
+            valid: legacyTickets.filter((ticket) => ticket.status === 'valid').length,
+            used: legacyTickets.filter((ticket) => ticket.status === 'used').length,
+            cancelled: legacyTickets.filter((ticket) => ticket.status === 'cancelled').length
+          }
+        });
+        return;
+      }
       throw notFound('Aucun bon de commande ne correspond à ce numéro.');
     }
 

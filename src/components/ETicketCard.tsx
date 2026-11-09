@@ -203,13 +203,15 @@ export const ETicketCard: React.FC<ETicketCardProps> = ({
             <span>{isDownloaded ? 'Téléchargé' : 'E-Billet PDF'}</span>
           </button>
 
-          <button
-            onClick={() => setIsTransferring(!isTransferring)}
-            className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-          >
-            <Share2 className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
-            <span>Céder la place</span>
-          </button>
+          {onTransfer && (
+            <button
+              onClick={() => setIsTransferring(!isTransferring)}
+              className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Share2 className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
+              <span>Céder la place</span>
+            </button>
+          )}
         </div>
 
         {ticket.status === 'valid' && onListForResale && (

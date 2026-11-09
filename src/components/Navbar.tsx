@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingBag, User, Ticket, Repeat, Clock, Sun, Moon, Calendar, Sparkles } from 'lucide-react';
+import { ShoppingBag, Ticket, Repeat, Clock, Sun, Moon, Calendar, Sparkles } from 'lucide-react';
 import { CartItem } from '../types/ticketing';
 
 interface NavbarProps {
@@ -8,8 +8,6 @@ interface NavbarProps {
   cart: CartItem[];
   setIsCartOpen: (open: boolean) => void;
   timeLeft: number; // in seconds
-  onOpenAuth: () => void;
-  userName: string | null;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
 }
@@ -20,8 +18,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   cart,
   setIsCartOpen,
   timeLeft,
-  onOpenAuth,
-  userName,
   theme,
   toggleTheme
 }) => {
@@ -175,17 +171,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="font-sans text-[11px] font-semibold text-slate-800">Fond Noir</span>
               </>
             )}
-          </button>
-
-          {/* User Account Button */}
-          <button
-            onClick={onOpenAuth}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-medium rounded-lg border transition-colors cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-200 dark:border-slate-700"
-          >
-            <User className="w-4 h-4 text-red-600 dark:text-amber-400 shrink-0" />
-            <span className="hidden sm:inline font-sans truncate max-w-[90px] md:max-w-[120px]">
-              {userName || 'Compte'}
-            </span>
           </button>
 
           {/* Cart Action Button */}

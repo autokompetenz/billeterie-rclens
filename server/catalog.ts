@@ -232,7 +232,10 @@ catalogRouter.get(
       [sector.id]
     );
 
-    const userId = req.user?.id;
+    const guestId = req.header('x-guest-id');
+    const userId = req.user?.id ?? (
+      guestId && /^[0-9a-f-]{36}$/i.test(guestId) ? `guest:${guestId}` : undefined
+    );
     res.json(
       rows.map((seat) => {
         let status: 'available' | 'occupied' | 'resale' = 'available';

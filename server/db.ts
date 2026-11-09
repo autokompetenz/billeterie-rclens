@@ -263,7 +263,7 @@ async function createSchema(): Promise<void> {
 
     CREATE TABLE IF NOT EXISTS holds (
       id         TEXT PRIMARY KEY,
-      user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id    TEXT,
       created_at TEXT NOT NULL,
       expires_at TEXT NOT NULL
     );
@@ -277,7 +277,7 @@ async function createSchema(): Promise<void> {
 
     CREATE TABLE IF NOT EXISTS orders (
       id                  TEXT PRIMARY KEY,
-      user_id             TEXT NOT NULL REFERENCES users(id),
+      user_id             TEXT REFERENCES users(id),
       buyer_name          TEXT NOT NULL,
       buyer_email         TEXT NOT NULL,
       tickets_total_cents INTEGER NOT NULL,
@@ -293,7 +293,7 @@ async function createSchema(): Promise<void> {
     CREATE TABLE IF NOT EXISTS tickets (
       id               TEXT PRIMARY KEY,
       order_id         TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-      user_id          TEXT NOT NULL REFERENCES users(id),
+      user_id          TEXT REFERENCES users(id),
       ticket_number    TEXT NOT NULL UNIQUE,
       match_id         TEXT NOT NULL,
       opponent         TEXT NOT NULL,
@@ -454,6 +454,17 @@ async function createSchema(): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS idx_email_log_order ON email_log(order_id);
+  `);
+  // Les réservations sans compte utilisent un identifiant aléatoire de navigateur.
+  // Les anciennes installations avaient des clés étrangères vers users sur ces colonnes.
+  await getPool().query(`
+    ALTER TABLE holds ALTER COLUMN user_id DROP NOT NULL;
+    ALTER TABLE holds DROP CONSTRAINT IF EXISTS holds_user_id_fkey;
+    ALTER TABLE orders ALTER COLUMN user_id DROP NOT NULL;
+    ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_user_id_fkey;
+    ALTER TABLE tickets ALTER COLUMN user_id DROP NOT NULL;
+    ALTER TABLE tickets DROP CONSTRAINT IF EXISTS tickets_user_id_fkey;
+    ALTER TABLE seats DROP CONSTRAINT IF EXISTS seats_held_by_fkey;
   `);
 }
 

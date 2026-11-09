@@ -27,6 +27,20 @@ import {
 export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const TOKEN_STORAGE_KEY = 'rclens_auth_token';
+const GUEST_ID_STORAGE_KEY = 'rclens_guest_id';
+
+function getGuestId(): string {
+  try {
+    let id = localStorage.getItem(GUEST_ID_STORAGE_KEY);
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem(GUEST_ID_STORAGE_KEY, id);
+    }
+    return id;
+  } catch {
+    return crypto.randomUUID();
+  }
+}
 
 export class ApiError extends Error {
   readonly status: number;
@@ -122,7 +136,8 @@ interface RequestOptions {
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = {
-    Accept: 'application/json'
+    Accept: 'application/json',
+    'X-Guest-Id': getGuestId()
   };
 
   if (options.body !== undefined) {
@@ -284,7 +299,7 @@ export const ticketingApi = {
   createOrder(
     cart: CartItem[],
     addons: OrderAddons,
-    paymentInfo: { cardholder: string; email: string },
+    paymentInfo: { cardholder: string; email: string; phone?: string },
     promoCode?: string
   ): Promise<CreateOrderResult> {
     const items = cart.map((item) => {
