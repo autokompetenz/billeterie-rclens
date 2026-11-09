@@ -21,14 +21,22 @@ import {
   Ticket
 } from 'lucide-react';
 import { PublicFooter, PublicHeader } from '../components/PublicHeader';
+import { StadiumMap } from '../components/StadiumMap';
 import { eventsApi, getErrorMessage } from '../services/api';
-import { GuestOrderResult, StandId, TicketingEvent } from '../types/ticketing';
+import { GuestOrderResult, Match, Sector, StandId, TicketingEvent } from '../types/ticketing';
 
 type Step = 'catalogue' | 'checkout' | 'success';
 
 function formatPrice(value: number): string {
   return `${value.toFixed(2).replace('.', ',')} €`;
 }
+
+const STANDS: Array<{ id: StandId; label: string; side: string; color: string }> = [
+  { id: 'DELACOURT', label: 'Delacourt', side: 'Nord · but nord', color: '#059669' },
+  { id: 'TRANNIN', label: 'Trannin', side: 'Sud · but sud', color: '#2563eb' },
+  { id: 'MAREK_XERCES', label: 'Marek / Xercès', side: 'Est · kop', color: '#dc2626' },
+  { id: 'LEPAGNOT', label: 'Lepagnot', side: 'Ouest · honneur', color: '#d97706' }
+];
 
 export default function EventsPage() {
   const [events, setEvents] = useState<TicketingEvent[]>([]);
@@ -37,6 +45,7 @@ export default function EventsPage() {
 
   const [selected, setSelected] = useState<TicketingEvent | null>(null);
   const [selectedStand, setSelectedStand] = useState<StandId | null>(null);
+  const [selectedSectorId, setSelectedSectorId] = useState<string | null>(null);
   const [step, setStep] = useState<Step>('catalogue');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [buyer, setBuyer] = useState({ name: '', email: '', phone: '' });
@@ -74,6 +83,7 @@ export default function EventsPage() {
   function openEvent(event: TicketingEvent) {
     setSelected(event);
     setSelectedStand(null);
+    setSelectedSectorId(null);
     setStep('checkout');
     setResult(null);
     setSubmitError(null);
@@ -84,6 +94,7 @@ export default function EventsPage() {
   function backToCatalogue() {
     setSelected(null);
     setSelectedStand(null);
+    setSelectedSectorId(null);
     setStep('catalogue');
     setResult(null);
     setSubmitError(null);
@@ -98,14 +109,65 @@ export default function EventsPage() {
       .filter((line) => line.quantity > 0);
   }, [selected, quantities, selectedStand]);
 
-  const standInfo: Array<{ id: StandId; label: string; side: string }> = [
-    { id: 'DELACOURT', label: 'Delacourt', side: 'Nord · but nord' },
-    { id: 'TRANNIN', label: 'Trannin', side: 'Sud · but sud' },
-    { id: 'MAREK_XERCES', label: 'Marek / Xercès', side: 'Est · kop' },
-    { id: 'LEPAGNOT', label: 'Lepagnot', side: 'Ouest · honneur' }
-  ];
-  const standPrices = (standId: StandId) =>
-    selected?.ticketTypes.filter((type) => type.standId === standId && type.active && type.available > 0) ?? [];
+  const eventSectors = useMemo<Sector[]>(() => {
+    if (!selected) return [];
+    return selected.ticketTypes.flatMap((type, index) => {
+      if (!type.standId) return [];
+      const stand = STANDS.find((item) => item.id === type.standId)!;
+      return [{
+        id: type.id,
+        standId: type.standId,
+        name: type.name,
+        code: `CAT-${String(index + 1).padStart(2, '0')}`,
+        category: index + 1,
+        categoryName: type.name,
+        price: type.price,
+        reducedPrice: type.price,
+        totalSeats: type.stock,
+        availableSeats: type.available,
+        gate: type.description || `Accès ${stand.label}`,
+        viewAngleDescription: type.description || `${stand.label} · ${stand.side}`
+      }];
+    });
+  }, [selected]);
+
+  const eventMapMatch = useMemo<Match | null>(() => {
+    if (!selected) return null;
+    const stands = Object.fromEntries(STANDS.map((stand) => {
+      const types = selected.ticketTypes.filter((type) => type.standId === stand.id && type.active);
+      const availableSeats = types.reduce((sum, type) => sum + type.available, 0);
+      return [stand.id, {
+        id: stand.id,
+        name: `Tribune ${stand.label}`,
+        category: stand.side,
+        price: types.length ? Math.min(...types.map((type) => type.price)) : selected.minPrice,
+        availableSeats,
+        isSoldOut: availableSeats <= 0,
+        accentColor: stand.color
+      }];
+    })) as Match['stands'];
+    return {
+      id: selected.id,
+      opponent: selected.opponent || selected.title,
+      opponentShort: (selected.opponent || selected.title).slice(0, 12),
+      opponentLogo: '',
+      opponentColor: '#dc2626',
+      homeTeam: 'RC Lens',
+      competition: selected.category as Match['competition'],
+      round: selected.category,
+      date: selected.eventDate,
+      formattedDate: selected.formattedDate,
+      time: '',
+      venue: selected.venue,
+      status: 'open',
+      minPrice: selected.minPrice,
+      featured: selected.featured,
+      bannerImage: selected.imageUrl ?? undefined,
+      stands
+    };
+  }, [selected]);
+
+  const selectedSector = eventSectors.find((sector) => sector.id === selectedSectorId) ?? null;
   const featuredEvent = events.find((event) => event.featured) ?? events[0] ?? null;
 
   const total = useMemo(
@@ -130,6 +192,7 @@ export default function EventsPage() {
 
   function chooseStand(standId: StandId) {
     setSelectedStand(standId);
+    setSelectedSectorId(null);
     setQuantities({});
   }
 
@@ -520,6 +583,16 @@ export default function EventsPage() {
                   <p className="mt-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
                     {selected.description}
                   </p>
+                  <div className="mt-6 border-t border-slate-200 pt-5 dark:border-slate-800">
+                    <h2 className="font-heading text-lg font-black uppercase text-slate-900 dark:text-white">Informations pratiques</h2>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"><CalendarDays className="h-3.5 w-3.5 text-red-600 dark:text-amber-400" />Date et horaire</div><div className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{selected.formattedDate}</div></div>
+                      <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"><MapPin className="h-3.5 w-3.5 text-red-600 dark:text-amber-400" />Lieu</div><div className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{selected.venue}</div></div>
+                      <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"><Clock className="h-3.5 w-3.5 text-red-600 dark:text-amber-400" />Ouverture des portes</div><div className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{selected.doorsOpen || 'Horaire non communiqué'}</div></div>
+                      <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"><Ticket className="h-3.5 w-3.5 text-red-600 dark:text-amber-400" />Disponibilité</div><div className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{selected.availableStock} billet(s) en stock</div></div>
+                    </div>
+                    <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200"><BadgeCheck className="mt-0.5 h-4 w-4 shrink-0" />Votre réservation est sans compte. Le total est calculé selon la tribune, la catégorie et les quantités choisies; les détails de paiement vous seront communiqués après l’envoi de la commande.</div>
+                  </div>
                 </div>
               </div>
 
@@ -536,35 +609,23 @@ export default function EventsPage() {
                 </div>
 
                 {hasStandMap && (
-                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950/50">
-                    <div className="grid grid-cols-[1fr_1.1fr_1fr] grid-rows-[auto_auto_auto] gap-2 text-center">
-                      {(['DELACOURT'] as StandId[]).map((id) => {
-                        const categories = standPrices(id);
-                        return <button key={id} type="button" onClick={() => chooseStand(id)} disabled={!categories.length} className={`col-span-3 rounded-lg border p-2.5 text-xs font-bold transition ${selectedStand === id ? 'border-red-600 bg-red-700 text-white' : 'border-slate-300 bg-white text-slate-800 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-white'}`}>
-                          NORD · TRIBUNE DELACOURT <span className="block mt-1 font-normal opacity-80">{categories.length ? `Dès ${formatPrice(Math.min(...categories.map((type) => type.price)))}` : 'Indisponible'}</span>
-                        </button>;
-                      })}
-                      {(['LEPAGNOT'] as StandId[]).map((id) => {
-                        const categories = standPrices(id);
-                        return <button key={id} type="button" onClick={() => chooseStand(id)} disabled={!categories.length} className={`row-span-2 rounded-lg border p-2 text-[10px] font-bold transition sm:text-xs ${selectedStand === id ? 'border-red-600 bg-red-700 text-white' : 'border-slate-300 bg-white text-slate-800 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-white'}`}>
-                          OUEST<br />TRIBUNE LEPAGNOT<span className="mt-2 block font-normal opacity-80">{categories.length ? `Dès ${formatPrice(Math.min(...categories.map((type) => type.price)))}` : 'Indisponible'}</span>
-                        </button>;
-                      })}
-                      <div className="flex min-h-24 items-center justify-center rounded-lg border-2 border-dashed border-emerald-700 bg-emerald-100 px-2 text-[10px] font-black uppercase tracking-widest text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200 sm:text-xs">Terrain</div>
-                      {(['MAREK_XERCES'] as StandId[]).map((id) => {
-                        const categories = standPrices(id);
-                        return <button key={id} type="button" onClick={() => chooseStand(id)} disabled={!categories.length} className={`row-span-2 rounded-lg border p-2 text-[10px] font-bold transition sm:text-xs ${selectedStand === id ? 'border-red-600 bg-red-700 text-white' : 'border-slate-300 bg-white text-slate-800 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-white'}`}>
-                          EST<br />TRIBUNE MAREK / XERCÈS<span className="mt-2 block font-normal opacity-80">{categories.length ? `Dès ${formatPrice(Math.min(...categories.map((type) => type.price)))}` : 'Indisponible'}</span>
-                        </button>;
-                      })}
-                      {(['TRANNIN'] as StandId[]).map((id) => {
-                        const categories = standPrices(id);
-                        return <button key={id} type="button" onClick={() => chooseStand(id)} disabled={!categories.length} className={`col-span-3 rounded-lg border p-2.5 text-xs font-bold transition ${selectedStand === id ? 'border-red-600 bg-red-700 text-white' : 'border-slate-300 bg-white text-slate-800 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-white'}`}>
-                          SUD · TRIBUNE TRANNIN <span className="block mt-1 font-normal opacity-80">{categories.length ? `Dès ${formatPrice(Math.min(...categories.map((type) => type.price)))}` : 'Indisponible'}</span>
-                        </button>;
-                      })}
+                  eventMapMatch && (
+                    <div className="mt-4">
+                      <StadiumMap
+                        match={eventMapMatch}
+                        sectors={eventSectors}
+                        selectedStand={selectedStand}
+                        onSelectStand={chooseStand}
+                        selectedSector={selectedSector}
+                        onSelectSector={(sector) => {
+                          setSelectedStand(sector.standId);
+                          setSelectedSectorId(sector.id);
+                          setQuantities({});
+                        }}
+                        onPreviewPitch={() => undefined}
+                      />
                     </div>
-                  </div>
+                  )
                 )}
 
                 <div className="mt-4 space-y-3">
@@ -578,12 +639,12 @@ export default function EventsPage() {
                     return (
                       <div
                         key={type.id}
-                        className={`flex items-center justify-between gap-3 rounded-xl border p-3 transition-colors dark:border-slate-700 ${quantity > 0 ? 'border-red-500 bg-red-50/60 dark:bg-red-950/20' : 'border-slate-200'}`}
+                        className={`flex items-center justify-between gap-3 rounded-xl border p-3 transition-colors dark:border-slate-700 ${quantity > 0 || selectedSectorId === type.id ? 'border-red-500 bg-red-50/60 dark:bg-red-950/20' : 'border-slate-200'}`}
                       >
                         <div className="min-w-0">
                           <div className="flex items-start gap-1.5 text-sm font-bold text-slate-900 dark:text-white">
                             <MapPin className="h-3.5 w-3.5 shrink-0 text-red-600 dark:text-amber-400" />
-                            <span>{standInfo.find((stand) => stand.id === type.standId)?.label ?? ''}{type.standId ? ' · ' : ''}{type.name}</span>
+                            <span>{STANDS.find((stand) => stand.id === type.standId)?.label ?? ''}{type.standId ? ' · ' : ''}{type.name}</span>
                           </div>
                           <div className="text-xs text-slate-500 dark:text-slate-400">
                             {formatPrice(type.price)} · {type.available} restant(s)
