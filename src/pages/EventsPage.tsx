@@ -1,13 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
+  ArrowRight,
   ArrowLeft,
+  Banknote,
+  BadgeCheck,
   CalendarDays,
   CheckCircle2,
+  CircleHelp,
+  ClipboardCheck,
   Clock,
   Loader2,
   Mail,
   MapPin,
+  MapPinned,
   Minus,
   Plus,
   ShieldCheck,
@@ -362,6 +368,109 @@ export default function EventsPage() {
                   );
                 })}
               </div>
+
+              <section className="mt-16 grid gap-8 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800 sm:p-8 lg:grid-cols-[.75fr_1.25fr] lg:p-10">
+                <div className="max-w-md">
+                  <div className="text-[10px] font-black uppercase tracking-[0.22em] text-red-700 dark:text-amber-400">Simple du début à la fin</div>
+                  <h3 className="mt-2 font-heading text-3xl font-black uppercase leading-tight text-slate-900 dark:text-white sm:text-4xl">Votre réservation, étape par étape.</h3>
+                  <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">Retrouvez les informations essentielles avant de commander. Le prix et les disponibilités affichés sont liés à l’événement et aux catégories ouvertes à la vente.</p>
+                  <a href="#questions" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-red-700 hover:underline dark:text-amber-400">Consulter les questions fréquentes <ArrowRight className="h-4 w-4" /></a>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <article className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-950">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 font-heading text-lg font-black text-red-700 dark:bg-red-950 dark:text-amber-400">01</div>
+                    <h4 className="mt-4 font-bold text-slate-900 dark:text-white">Choisissez l’événement</h4>
+                    <p className="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Consultez la date, le lieu, l’ouverture des portes et les tarifs de départ.</p>
+                  </article>
+                  <article className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-950">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 font-heading text-lg font-black text-red-700 dark:bg-red-950 dark:text-amber-400">02</div>
+                    <h4 className="mt-4 font-bold text-slate-900 dark:text-white">Sélectionnez la tribune</h4>
+                    <p className="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Sur le plan, choisissez un côté du stade, puis une catégorie et une quantité.</p>
+                  </article>
+                  <article className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-950">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 font-heading text-lg font-black text-red-700 dark:bg-red-950 dark:text-amber-400">03</div>
+                    <h4 className="mt-4 font-bold text-slate-900 dark:text-white">Finalisez le paiement</h4>
+                    <p className="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Indiquez votre e-mail, puis suivez les instructions de virement jointes à votre commande.</p>
+                  </article>
+                </div>
+              </section>
+
+              <section className="mt-8 grid gap-5 lg:grid-cols-2">
+                <div className="overflow-hidden rounded-3xl bg-slate-950 p-6 text-white sm:p-8">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-amber-300"><MapPinned className="h-4 w-4" /> Comprendre les tribunes</div>
+                  <h3 className="mt-3 font-heading text-3xl font-black uppercase">Choisissez votre côté.</h3>
+                  <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/65">Le plan de réservation représente les quatre tribunes de Bollaert-Delelis. Les catégories proposées et leur tarif dépendent de l’événement.</p>
+                  <div className="mt-6 grid grid-cols-2 gap-2">
+                    {[
+                      ['Nord', 'Delacourt', 'Derrière le but'],
+                      ['Sud', 'Trannin', 'Derrière le but'],
+                      ['Est', 'Marek / Xercès', 'Kop Sang et Or'],
+                      ['Ouest', 'Lepagnot', 'Tribune honneur']
+                    ].map(([side, stand, detail]) => (
+                      <div key={stand} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                        <div className="text-[9px] font-bold uppercase tracking-widest text-amber-300">{side}</div>
+                        <div className="mt-1 text-sm font-bold">{stand}</div>
+                        <div className="mt-0.5 text-[10px] text-white/50">{detail}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-4 text-[11px] leading-relaxed text-white/50">La sélection porte sur la tribune et la catégorie proposées. Le choix d’un siège numéroté précis n’est pas encore proposé dans ce parcours.</p>
+                </div>
+
+                <div className="rounded-3xl border border-amber-300 bg-amber-50 p-6 dark:border-amber-900 dark:bg-amber-950/30 sm:p-8">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-amber-800 dark:text-amber-300"><Banknote className="h-4 w-4" /> Règlement par virement</div>
+                  <h3 className="mt-3 font-heading text-3xl font-black uppercase text-slate-900 dark:text-white">Les bonnes informations, au bon moment.</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">Après la commande, les coordonnées bancaires de la billetterie s’affichent à l’écran et sont envoyées par e-mail avec le montant exact et un motif de paiement unique.</p>
+                  <ul className="mt-5 space-y-3 text-sm text-slate-700 dark:text-slate-200">
+                    <li className="flex items-start gap-2"><BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" /><span>Utilisez le montant et le motif indiqués pour votre commande.</span></li>
+                    <li className="flex items-start gap-2"><BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" /><span>Choisissez un virement instantané depuis votre application bancaire.</span></li>
+                    <li className="flex items-start gap-2"><BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" /><span>Les billets sont activés après réception et validation du paiement.</span></li>
+                  </ul>
+                  <div className="mt-5 flex items-start gap-2 rounded-xl bg-white/70 p-3 text-xs leading-relaxed text-slate-600 dark:bg-slate-900/60 dark:text-slate-300"><ClipboardCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" />Gardez votre numéro de bon de commande : il vous permettra de retrouver l’état de votre réservation.</div>
+                </div>
+              </section>
+
+              <section id="questions" className="mt-16 scroll-mt-28">
+                <div className="mx-auto max-w-3xl">
+                  <div className="text-center">
+                    <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-red-700 dark:text-amber-400"><CircleHelp className="h-4 w-4" /> Besoin d’un repère ?</div>
+                    <h3 className="mt-2 font-heading text-3xl font-black uppercase text-slate-900 dark:text-white sm:text-4xl">Questions fréquentes</h3>
+                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Les détails utiles pour réserver et suivre vos billets.</p>
+                  </div>
+                  <div className="mt-6 divide-y divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900">
+                    <details className="group p-4 sm:p-5">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-bold text-slate-900 marker:hidden dark:text-white">Dois-je créer un compte pour commander ?<span className="text-xl text-red-700 transition group-open:rotate-45 dark:text-amber-400">+</span></summary>
+                      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">Non. La commande se fait avec votre nom et votre adresse e-mail. Un compte client n’est pas nécessaire.</p>
+                    </details>
+                    <details className="group p-4 sm:p-5">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-bold text-slate-900 marker:hidden dark:text-white">Où trouver les coordonnées et le motif du virement ?<span className="text-xl text-red-700 transition group-open:rotate-45 dark:text-amber-400">+</span></summary>
+                      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">Ils s’affichent une fois la commande enregistrée et figurent dans l’e-mail récapitulatif. Le motif est propre à votre commande : recopiez-le exactement.</p>
+                    </details>
+                    <details className="group p-4 sm:p-5">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-bold text-slate-900 marker:hidden dark:text-white">Quand mes billets sont-ils validés ?<span className="text-xl text-red-700 transition group-open:rotate-45 dark:text-amber-400">+</span></summary>
+                      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">La commande reste en attente pendant le règlement. Les billets sont activés après réception et validation du virement.</p>
+                    </details>
+                    <details className="group p-4 sm:p-5">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-bold text-slate-900 marker:hidden dark:text-white">Comment retrouver ma commande ?<span className="text-xl text-red-700 transition group-open:rotate-45 dark:text-amber-400">+</span></summary>
+                      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">Utilisez le numéro de bon de commande reçu par e-mail sur la page de vérification. Si le message tarde, vérifiez aussi le dossier des courriers indésirables.</p>
+                      <a href="/verifier" className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-red-700 hover:underline dark:text-amber-400">Ouvrir la vérification <ArrowRight className="h-4 w-4" /></a>
+                    </details>
+                    <details className="group p-4 sm:p-5">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-bold text-slate-900 marker:hidden dark:text-white">Le prix peut-il changer selon la tribune ?<span className="text-xl text-red-700 transition group-open:rotate-45 dark:text-amber-400">+</span></summary>
+                      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">Oui. Les catégories, leurs tarifs et les stocks disponibles sont définis pour chaque événement. Le total se met à jour selon les billets sélectionnés avant l’envoi de la commande.</p>
+                    </details>
+                  </div>
+                </div>
+              </section>
+
+              <section className="mt-12 flex flex-col items-start justify-between gap-5 rounded-2xl bg-gradient-to-r from-red-800 to-red-950 p-5 text-white sm:flex-row sm:items-center sm:p-7">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-300">Prêt à vivre Bollaert ?</div>
+                  <h3 className="mt-1 font-heading text-2xl font-black uppercase sm:text-3xl">Votre prochain rendez-vous commence ici.</h3>
+                  <p className="mt-1 text-sm text-white/70">Consultez les événements ouverts à la réservation.</p>
+                </div>
+                <a href="#evenements" className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-amber-400 px-5 py-3 text-sm font-black uppercase text-slate-950 transition hover:bg-amber-300">Voir les événements <ArrowRight className="h-4 w-4" /></a>
+              </section>
             </section>
           </>
         )}
