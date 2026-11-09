@@ -82,6 +82,13 @@ const EMPTY_TYPE: TicketTypeFormState = {
   maxPerOrder: '6'
 };
 
+const ADMIN_STAND_LABELS: Record<StandId, string> = {
+  DELACOURT: 'Delacourt · Nord',
+  TRANNIN: 'Trannin · Sud',
+  MAREK_XERCES: 'Marek / Xercès · Est',
+  LEPAGNOT: 'Lepagnot · Ouest'
+};
+
 function toDateTimeLocal(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
@@ -1479,8 +1486,32 @@ export default function AdminPage() {
                   Catégories de billets
                 </h3>
                 <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                  Associez chaque catégorie à une tribune. Les clients choisissent le côté sur le plan, puis voient les catégories et les prix disponibles pour cette tribune.
+                  Un même match peut proposer plusieurs tribunes. Ajoutez une offre par tribune, avec son propre prix et son stock ; les clients choisiront leur côté sur le plan avant de voir les billets disponibles.
                 </p>
+
+                {editingEvent && (
+                  <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Tribunes avec billets configurés · {new Set(editingEvent.ticketTypes.map((type) => type.standId).filter(Boolean)).size}/4
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {(['DELACOURT', 'TRANNIN', 'MAREK_XERCES', 'LEPAGNOT'] as StandId[]).map((standId) => {
+                        const standTypes = editingEvent.ticketTypes.filter((type) => type.standId === standId);
+                        const available = standTypes.reduce((sum, type) => sum + (type.active ? Math.max(0, type.stock - type.sold) : 0), 0);
+                        return (
+                          <span key={standId} className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${available > 0 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
+                            {ADMIN_STAND_LABELS[standId]}{available > 0 ? ` · ${available} places` : ''}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+                      {editingEvent.ticketTypes.length === 0
+                        ? 'Ajoutez une première catégorie pour ouvrir une tribune.'
+                        : 'Pour ouvrir une autre tribune, ajoutez une catégorie et choisissez-la dans le formulaire ci-dessous.'}
+                    </p>
+                  </div>
+                )}
 
                 {!eventForm.id && (
                   <p className="rounded-lg border border-dashed border-amber-300 bg-amber-50 p-3 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
@@ -1507,6 +1538,7 @@ export default function AdminPage() {
                               )}
                             </div>
                             <div className="text-xs text-slate-500 dark:text-slate-400">
+                              {type.standId ? `${ADMIN_STAND_LABELS[type.standId]} · ` : ''}
                               {euros(type.price)} · stock {type.sold}/{type.stock}
                             </div>
                           </div>
@@ -1575,7 +1607,7 @@ export default function AdminPage() {
                         }
                         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-600 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                       >
-                        <option value="" disabled>Choisir la tribune</option>
+                        <option value="" disabled>Choisir la tribune de cette offre</option>
                         <option value="DELACOURT">Tribune Delacourt · Nord</option>
                         <option value="TRANNIN">Tribune Trannin · Sud</option>
                         <option value="MAREK_XERCES">Tribune Marek / Xercès · Est</option>
