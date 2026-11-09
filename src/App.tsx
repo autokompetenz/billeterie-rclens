@@ -576,15 +576,17 @@ export default function App() {
           )}
         </button>
 
-        {/* Backend API Helper for Developer */}
-        <button
-          onClick={() => setShowApiDocs(!showApiDocs)}
-          className="px-3.5 py-2 rounded-xl bg-white/95 dark:bg-slate-900/95 border border-amber-500/60 hover:border-amber-500 text-slate-800 dark:text-amber-300 hover:text-red-700 dark:hover:text-amber-200 text-xs font-mono font-bold flex items-center gap-2 shadow-xl backdrop-blur-md cursor-pointer transition-all hover:scale-105"
-        >
-          <Code2 className="w-4 h-4 text-red-600 dark:text-amber-400" />
-          <span className="hidden sm:inline">Architecture API Backend</span>
-          <span className="sm:hidden">API</span>
-        </button>
+        {/* Aide API réservée au développement : jamais visible en production. */}
+        {import.meta.env.DEV && (
+          <button
+            onClick={() => setShowApiDocs(!showApiDocs)}
+            className="px-3.5 py-2 rounded-xl bg-white/95 dark:bg-slate-900/95 border border-amber-500/60 hover:border-amber-500 text-slate-800 dark:text-amber-300 hover:text-red-700 dark:hover:text-amber-200 text-xs font-mono font-bold flex items-center gap-2 shadow-xl backdrop-blur-md cursor-pointer transition-all hover:scale-105"
+          >
+            <Code2 className="w-4 h-4 text-red-600 dark:text-amber-400" />
+            <span className="hidden sm:inline">Architecture API Backend</span>
+            <span className="sm:hidden">API</span>
+          </button>
+        )}
       </div>
 
       {/* Quick Interactive Tour Bar for effortless preview of all features */}
@@ -1094,7 +1096,7 @@ export default function App() {
       />
 
       {/* Developer Backend Architecture Modal */}
-      {showApiDocs && (
+      {import.meta.env.DEV && showApiDocs && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-amber-500/40 w-full max-w-3xl max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-900 dark:text-white transition-colors">
             <div className="px-6 py-4 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
