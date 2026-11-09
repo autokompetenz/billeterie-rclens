@@ -1016,6 +1016,11 @@ export default function AdminPage() {
                         <div className="mt-1 text-slate-500 dark:text-slate-400">
                           Stock : {type.available}/{type.stock} · vendus {type.sold}
                         </div>
+                        {type.description && (
+                          <div className="mt-1 text-slate-600 dark:text-slate-300">
+                            {type.description}
+                          </div>
+                        )}
                       </div>
                     ))}
                     {!event.ticketTypes.some((type) => type.active) && (
@@ -1217,10 +1222,10 @@ export default function AdminPage() {
       {/* Modale d'édition d'événement                                     */}
       {/* ---------------------------------------------------------------- */}
       {editorOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-sm">
-          <div className="my-6 w-full max-w-4xl rounded-2xl bg-white shadow-2xl dark:bg-slate-900">
-            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
-              <h2 className="font-heading text-xl font-black uppercase text-slate-900 dark:text-white">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 p-2 backdrop-blur-sm sm:p-4">
+          <div className="my-2 w-full max-w-4xl rounded-xl bg-white shadow-2xl dark:bg-slate-900 sm:my-6 sm:rounded-2xl">
+            <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-xl border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 sm:px-5 sm:py-4">
+              <h2 className="font-heading text-lg font-black uppercase text-slate-900 dark:text-white sm:text-xl">
                 {eventForm.id ? 'Modifier l’événement' : 'Nouvel événement'}
               </h2>
               <button
@@ -1232,7 +1237,7 @@ export default function AdminPage() {
               </button>
             </div>
 
-            <div className="grid gap-6 p-5 lg:grid-cols-[1.1fr_1fr]">
+            <div className="grid gap-5 p-4 sm:gap-6 sm:p-5 lg:grid-cols-[1.1fr_1fr]">
               <form onSubmit={saveEvent} className="space-y-3">
                 <h3 className="font-heading text-lg font-black uppercase text-slate-900 dark:text-white">
                   Informations
@@ -1451,6 +1456,9 @@ export default function AdminPage() {
                 <h3 className="font-heading text-lg font-black uppercase text-slate-900 dark:text-white">
                   Catégories de billets
                 </h3>
+                <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                  Indiquez la tribune ou le côté du stade dans le nom de chaque catégorie. Les clients verront ce nom au moment du choix et sur leur récapitulatif.
+                </p>
 
                 {!eventForm.id && (
                   <p className="rounded-lg border border-dashed border-amber-300 bg-amber-50 p-3 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
@@ -1542,7 +1550,7 @@ export default function AdminPage() {
                         onChange={(event) =>
                           setTypeForm({ ...typeForm, name: event.target.value })
                         }
-                        placeholder="Nom (ex. Tribune Trannin)"
+                        placeholder="Nom (ex. Tribune Trannin – côté nord)"
                         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-600 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                       />
                       <div className="grid grid-cols-3 gap-2">
@@ -1579,7 +1587,7 @@ export default function AdminPage() {
                         onChange={(event) =>
                           setTypeForm({ ...typeForm, description: event.target.value })
                         }
-                        placeholder="Description (facultatif)"
+                        placeholder="Emplacement ou côté de la tribune (facultatif)"
                         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-600 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                       />
                     </div>
@@ -1624,10 +1632,10 @@ export default function AdminPage() {
       {/* Modale de détail de commande                                     */}
       {/* ---------------------------------------------------------------- */}
       {(orderDetail || orderLoading) && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-sm">
-          <div className="my-6 w-full max-w-2xl rounded-2xl bg-white shadow-2xl dark:bg-slate-900">
-            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
-              <h2 className="font-heading text-xl font-black uppercase text-slate-900 dark:text-white">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 p-2 backdrop-blur-sm sm:p-4">
+          <div className="my-2 w-full max-w-2xl rounded-xl bg-white shadow-2xl dark:bg-slate-900 sm:my-6 sm:rounded-2xl">
+            <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-xl border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 sm:px-5 sm:py-4">
+              <h2 className="font-heading text-lg font-black uppercase text-slate-900 dark:text-white sm:text-xl">
                 Détail de la commande
               </h2>
               <button
@@ -1641,7 +1649,7 @@ export default function AdminPage() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="p-5">
+            <div className="p-4 sm:p-5">
               {orderLoading && (
                 <div className="flex items-center gap-2 text-sm text-slate-500">
                   <Loader2 className="h-4 w-4 animate-spin" /> Chargement…

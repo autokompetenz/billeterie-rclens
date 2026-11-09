@@ -153,15 +153,15 @@ export default function EventsPage() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <PublicHeader active="events" />
 
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-12">
         {step === 'catalogue' && (
           <>
-            <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-red-700 via-red-800 to-slate-950 p-6 text-white shadow-xl sm:p-10">
+            <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-red-700 via-red-800 to-slate-950 p-5 text-white shadow-xl sm:p-10">
               <div className="inline-flex items-center gap-2 rounded-full bg-amber-400/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-amber-300">
                 <Sparkles className="h-3.5 w-3.5" />
                 Billets à l’unité · sans compte
               </div>
-              <h1 className="mt-4 font-heading text-4xl font-black uppercase leading-none sm:text-6xl">
+              <h1 className="mt-4 max-w-4xl font-heading text-3xl font-black uppercase leading-tight sm:text-5xl sm:leading-none lg:text-6xl">
                 Vivez l’émotion <span className="text-amber-400">Sang et Or</span>
               </h1>
               <p className="mt-4 max-w-2xl text-sm text-white/80 sm:text-base">
@@ -361,6 +361,10 @@ export default function EventsPage() {
                 <h2 className="font-heading text-xl font-black uppercase text-slate-900 dark:text-white">
                   Vos billets
                 </h2>
+                <div className="mt-2 flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-400/10 dark:text-amber-200">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>Choisissez votre tribune ou votre côté du stade en sélectionnant la catégorie correspondante. Le nom de la tribune sera indiqué sur chaque billet.</span>
+                </div>
 
                 <div className="mt-4 space-y-3">
                   {selected.ticketTypes.map((type) => {
@@ -369,15 +373,21 @@ export default function EventsPage() {
                     return (
                       <div
                         key={type.id}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700"
+                        className={`flex items-center justify-between gap-3 rounded-xl border p-3 transition-colors dark:border-slate-700 ${quantity > 0 ? 'border-red-500 bg-red-50/60 dark:bg-red-950/20' : 'border-slate-200'}`}
                       >
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-bold text-slate-900 dark:text-white">
+                          <div className="flex items-center gap-1.5 text-sm font-bold text-slate-900 dark:text-white">
+                            <MapPin className="h-3.5 w-3.5 shrink-0 text-red-600 dark:text-amber-400" />
                             {type.name}
                           </div>
                           <div className="text-xs text-slate-500 dark:text-slate-400">
                             {formatPrice(type.price)} · {type.available} restant(s)
                           </div>
+                          {type.description && (
+                            <div className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                              {type.description}
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-1.5">
                           <button

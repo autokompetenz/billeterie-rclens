@@ -22,9 +22,9 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({ active }) => {
       <div className="bg-gradient-to-r from-red-700 via-amber-600 to-red-700 px-4 py-1 text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-white">
         Billetterie officielle · RC Lens
       </div>
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <a href="/" className="group flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-amber-400/60 bg-gradient-to-b from-red-600 to-red-800 p-0.5 shadow">
+      <div className="mx-auto flex min-h-16 max-w-6xl items-center justify-between gap-2 px-3 sm:h-16 sm:gap-4 sm:px-6">
+        <a href="/" className="group flex min-w-0 items-center gap-2 sm:gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-amber-400/60 bg-gradient-to-b from-red-600 to-red-800 p-0.5 shadow sm:h-10 sm:w-10">
             <div className="flex h-full w-full flex-col items-center justify-center rounded-[6px] bg-slate-950">
               <span className="font-heading text-[9px] font-black tracking-widest text-amber-400">
                 RC LENS
@@ -35,16 +35,16 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({ active }) => {
             </div>
           </div>
           <div className="leading-none">
-            <div className="font-heading text-lg font-black uppercase tracking-tight sm:text-xl">
+            <div className="whitespace-nowrap font-heading text-sm font-black uppercase tracking-tight sm:text-xl">
               Billetterie <span className="text-red-600 dark:text-amber-400">RC Lens</span>
             </div>
-            <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+            <div className="mt-0.5 hidden text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400 sm:block">
               Bollaert-Delelis
             </div>
           </div>
         </a>
 
-        <nav className="flex items-center gap-1 sm:gap-2">
+        <nav aria-label="Navigation principale" className="flex shrink-0 items-center gap-0.5 sm:gap-2">
           {links.map((link) => {
             const Icon = link.icon;
             const isActive = active === link.id;
@@ -52,14 +52,16 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({ active }) => {
               <a
                 key={link.id}
                 href={link.href}
-                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold transition-colors sm:px-3 sm:text-sm ${
+                aria-label={link.label}
+                title={link.label}
+                className={`flex min-h-10 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-semibold transition-colors sm:px-3 sm:text-sm ${
                   isActive
                     ? 'bg-red-600 text-white shadow-sm'
                     : 'text-slate-600 hover:bg-slate-100 hover:text-red-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-amber-300'
                 }`}
               >
                 <Icon className="h-4 w-4" />
-                <span className="hidden xs:inline sm:inline">{link.label}</span>
+                <span className="hidden sm:inline">{link.label}</span>
               </a>
             );
           })}
