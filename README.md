@@ -414,6 +414,7 @@ Variables d'environnement principales (voir `.env.example`) :
 | `PORT` | `3001` | Port de l'API locale |
 | `DATABASE_URL` | — | Chaîne PostgreSQL/Neon (**obligatoire**) |
 | `PGSSL` | auto | Force (`true`) ou désactive (`false`) SSL |
+| `PGSSL_REJECT_UNAUTHORIZED` | `true` | Vérifie le certificat SSL (mettre `false` pour un certificat auto-signé) |
 | `PG_POOL_MAX` | `5` | Connexions maximales du pool |
 | `SEED_DEMO_DATA` | `true` | Amorçage des données de démonstration |
 | `SEED_PASSWORD` | `Bollaert2026!` | Mot de passe des comptes de démo |

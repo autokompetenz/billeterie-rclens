@@ -21,11 +21,24 @@ if (process.env.NODE_ENV === 'production' && process.env.FORCE_RESET !== 'true')
   process.exit(1);
 }
 
-const ssl = /neon\.tech|sslmode=require/i.test(connectionString)
-  ? { rejectUnauthorized: false }
+const ssl = /neon\.tech|sslmode=require|sslmode=verify/i.test(connectionString)
+  ? { rejectUnauthorized: process.env.PGSSL_REJECT_UNAUTHORIZED !== 'false' }
   : undefined;
 
-const client = new pg.Client({ connectionString, ssl });
+// Retire sslmode/channel_binding : SSL est configuré explicitement ci-dessus.
+// Cela évite l'avertissement de pg-connection-string sur sslmode=require.
+const cleanUrl = (() => {
+  try {
+    const url = new URL(connectionString);
+    url.searchParams.delete('sslmode');
+    url.searchParams.delete('channel_binding');
+    return url.toString();
+  } catch {
+    return connectionString;
+  }
+})();
+
+const client = new pg.Client({ connectionString: cleanUrl, ssl });
 
 try {
   await client.connect();

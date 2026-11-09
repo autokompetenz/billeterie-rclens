@@ -26,6 +26,25 @@ function needsSsl(connectionString: string): boolean {
   return /neon\.tech|sslmode=require|sslmode=verify/i.test(connectionString);
 }
 
+/**
+ * Retire `sslmode` et `channel_binding` de l'URL avant de la confier à `pg`.
+ *
+ * `pg-connection-string` émet un avertissement pour `sslmode=require` et
+ * changera son interprétation dans pg 9. Comme le SSL est configuré
+ * explicitement ci-dessous (`ssl`), ces paramètres sont inutiles et peuvent
+ * entrer en conflit avec notre configuration.
+ */
+function normalizeConnectionString(connectionString: string): string {
+  try {
+    const url = new URL(connectionString);
+    url.searchParams.delete('sslmode');
+    url.searchParams.delete('channel_binding');
+    return url.toString();
+  } catch {
+    return connectionString;
+  }
+}
+
 export function getPool(): Pool {
   if (pool) return pool;
 
@@ -36,9 +55,18 @@ export function getPool(): Pool {
     );
   }
 
+  const useSsl = needsSsl(connectionString);
+
   pool = new Pool({
-    connectionString,
-    ssl: needsSsl(connectionString) ? { rejectUnauthorized: false } : undefined,
+    connectionString: normalizeConnectionString(connectionString),
+    ssl: useSsl
+      ? {
+          // Neon utilise un certificat public : la vérification est active par
+          // défaut. PGSSL_REJECT_UNAUTHORIZED=false permet de la désactiver
+          // pour un serveur local à certificat auto-signé.
+          rejectUnauthorized: process.env.PGSSL_REJECT_UNAUTHORIZED !== 'false'
+        }
+      : undefined,
     max: Number(process.env.PG_POOL_MAX || 5),
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 10_000
