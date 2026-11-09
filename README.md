@@ -187,6 +187,7 @@ Accessible uniquement via **`/admin`** (aucun lien dans la navigation publique).
 - **Connexion** : code secret `ADMIN_CODE`, cookie `rcl_admin` HttpOnly + `SameSite=Lax` (+ `Secure` en production), valable 12 h. Limitation à 8 tentatives par IP et par fenêtre de 15 minutes.
 - **Tableau de bord** : nombre d'événements, commandes, billets vendus, recette, contrôles d'accès.
 - **Événements** : création, modification, publication/annulation, suppression (refusée si des commandes existent).
+- **Images** : URL externe ou import d'un fichier local (JPG, PNG, WebP). Le navigateur redimensionne et compresse l'image en JPEG, puis l'API la stocke dans `event_images` et renvoie une URL `/api/images/:id`.
 - **Catégories de billets** : nom, description, prix, stock, maximum par commande, activation/désactivation, suppression (refusée si des ventes existent).
 - **Commandes** : recherche par bon de commande, nom ou e-mail, détail complet et billets.
 - **Contrôle d'accès** : validation d'un billet par code (`used`), refus des doublons, réinitialisation possible.
@@ -224,6 +225,7 @@ Les routes marquées 🛡️ nécessitent le cookie de session administrateur.
 | --- | --- | --- | --- |
 | `GET` | `/events` | — | Événements publiés avec catégories, prix et stock |
 | `GET` | `/events/:idOrSlug` | — | Détail d'un événement publié |
+| `GET` | `/images/:id` | — | Image d'événement importée (cache long) |
 | `POST` | `/orders/guest` | voir ci-dessous | Commande sans compte + e-mails |
 | `GET` | `/orders/verify/:orderNumber` | — | Vérification publique d'un bon de commande (données masquées) |
 | `GET` | `/tickets/verify/:code` | — | Vérification publique d'un billet (données masquées) |
@@ -311,6 +313,7 @@ Exemple de commande historique :
 | `GET` | `/admin/stats` | Indicateurs globaux |
 | `GET` | `/admin/events` | Tous les événements (brouillons inclus) |
 | `POST` | `/admin/events` | Crée un événement |
+| `POST` | `/admin/images` | `{ dataUrl }` → stocke une image (`{ id, url }`) |
 | `PATCH` | `/admin/events/:id` | Modifie un événement |
 | `DELETE` | `/admin/events/:id` | Supprime un événement sans commande |
 | `POST` | `/admin/events/:id/ticket-types` | Ajoute une catégorie de billet |
