@@ -52,6 +52,14 @@ export const adminRouter = Router();
 const IMAGE_DATA_URL_PATTERN =
   /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=\s]+)$/;
 const MAX_IMAGE_BYTES = 2_500_000;
+const EVENT_STAND_IDS = ['MAREK_XERCES', 'LEPAGNOT', 'DELACOURT', 'TRANNIN'] as const;
+
+function parseEventStand(value: unknown): (typeof EVENT_STAND_IDS)[number] {
+  if (typeof value !== 'string' || !EVENT_STAND_IDS.includes(value as (typeof EVENT_STAND_IDS)[number])) {
+    throw badRequest('Choisissez une tribune valide.');
+  }
+  return value as (typeof EVENT_STAND_IDS)[number];
+}
 
 /** Vérifie la signature binaire pour éviter un fichier déguisé en image. */
 function hasValidImageSignature(data: Buffer, mimeType: string): boolean {
@@ -359,6 +367,7 @@ async function adminEventPayload(event: EventRow) {
     imageUrl: event.image_url,
     ticketTypes: types.map((type) => ({
       id: type.id,
+      standId: type.stand_id,
       name: type.name,
       description: type.description,
       price: centsToEuros(type.price_cents),
@@ -533,6 +542,7 @@ adminRouter.post(
       min: 2,
       max: 120
     });
+    const standId = parseEventStand(req.body?.standId);
     const priceCents = parsePriceCents(req.body);
     const stock = parseStock(req.body?.stock);
     const maxPerOrder = req.body?.maxPerOrder === undefined
@@ -545,13 +555,14 @@ adminRouter.post(
     const id = newId('ett');
     await execute(
       `INSERT INTO event_ticket_types (
-         id, event_id, name, description, price_cents, stock, max_per_order,
+         id, event_id, name, stand_id, description, price_cents, stock, max_per_order,
          sort_order, active, created_at, updated_at
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),NOW())`,
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW(),NOW())`,
       [
         id,
         event.id,
         name,
+        standId,
         optionalString(req.body?.description, 1000) ?? '',
         priceCents,
         stock,
@@ -581,6 +592,9 @@ adminRouter.patch(
     const name = req.body?.name !== undefined
       ? requireString(req.body.name, 'nom de la catégorie', { min: 2, max: 120 })
       : existing.name;
+    const standId = req.body?.standId !== undefined
+      ? parseEventStand(req.body.standId)
+      : existing.stand_id;
     const priceCents = req.body?.price !== undefined || req.body?.priceCents !== undefined
       ? parsePriceCents(req.body)
       : existing.price_cents;
@@ -600,11 +614,12 @@ adminRouter.patch(
 
     await execute(
       `UPDATE event_ticket_types SET
-         name = $1, description = $2, price_cents = $3, stock = $4,
-         max_per_order = $5, sort_order = $6, active = $7, updated_at = NOW()
-       WHERE id = $8`,
+         name = $1, stand_id = $2, description = $3, price_cents = $4, stock = $5,
+         max_per_order = $6, sort_order = $7, active = $8, updated_at = NOW()
+       WHERE id = $9`,
       [
         name,
+        standId,
         req.body?.description !== undefined
           ? optionalString(req.body.description, 1000) ?? ''
           : existing.description,

@@ -173,6 +173,7 @@ export interface AuthUser {
 
 export interface EventTicketType {
   id: string;
+  standId?: StandId | null;
   name: string;
   description: string;
   price: number;

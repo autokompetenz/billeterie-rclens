@@ -24,6 +24,12 @@ import {
 export const eventsRouter = Router();
 
 const MAX_TICKETS_PER_ORDER = 10;
+const STAND_NAMES: Record<string, string> = {
+  DELACOURT: 'Tribune Delacourt · Nord',
+  TRANNIN: 'Tribune Trannin · Sud',
+  MAREK_XERCES: 'Tribune Marek / Xercès · Est',
+  LEPAGNOT: 'Tribune Lepagnot · Ouest'
+};
 
 /* Images importées depuis l'administration, servies avec un cache long. */
 eventsRouter.get(
@@ -63,6 +69,7 @@ export interface TicketTypeRow {
   id: string;
   event_id: string;
   name: string;
+  stand_id: string | null;
   description: string;
   price_cents: number;
   stock: number;
@@ -131,6 +138,7 @@ function mapTicketType(row: TicketTypeRow) {
   const available = Math.max(0, row.stock - row.sold);
   return {
     id: row.id,
+    standId: row.stand_id,
     name: row.name,
     description: row.description,
     price: centsToEuros(row.price_cents),
@@ -425,6 +433,9 @@ eventsRouter.post(
       const createdTickets: GuestTicketRow[] = [];
 
       for (const line of lines) {
+        const ticketTypeName = line.type.stand_id
+          ? `${STAND_NAMES[line.type.stand_id] ?? 'Tribune'} · ${line.type.name}`
+          : line.type.name;
         await tx.execute(
           `INSERT INTO guest_order_items (
              id, order_id, ticket_type_id, ticket_type_name, unit_price_cents, quantity
@@ -433,7 +444,7 @@ eventsRouter.post(
             newId('gitem'),
             orderId,
             line.type.id,
-            line.type.name,
+            ticketTypeName,
             line.type.price_cents,
             line.quantity
           ]
@@ -446,7 +457,7 @@ eventsRouter.post(
             order_id: orderId,
             ticket_code: ticketCode,
             ticket_type_id: line.type.id,
-            ticket_type_name: line.type.name,
+            ticket_type_name: ticketTypeName,
             event_id: event.id,
             beneficiary_name: beneficiary,
             price_cents: line.type.price_cents,

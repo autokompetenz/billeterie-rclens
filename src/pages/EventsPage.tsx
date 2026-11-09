@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { PublicFooter, PublicHeader } from '../components/PublicHeader';
 import { eventsApi, getErrorMessage } from '../services/api';
-import { GuestOrderResult, TicketingEvent } from '../types/ticketing';
+import { GuestOrderResult, StandId, TicketingEvent } from '../types/ticketing';
 
 type Step = 'catalogue' | 'checkout' | 'success';
 
@@ -30,6 +30,7 @@ export default function EventsPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [selected, setSelected] = useState<TicketingEvent | null>(null);
+  const [selectedStand, setSelectedStand] = useState<StandId | null>(null);
   const [step, setStep] = useState<Step>('catalogue');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [buyer, setBuyer] = useState({ name: '', email: '', phone: '' });
@@ -66,6 +67,7 @@ export default function EventsPage() {
 
   function openEvent(event: TicketingEvent) {
     setSelected(event);
+    setSelectedStand(null);
     setStep('checkout');
     setResult(null);
     setSubmitError(null);
@@ -75,17 +77,29 @@ export default function EventsPage() {
 
   function backToCatalogue() {
     setSelected(null);
+    setSelectedStand(null);
     setStep('catalogue');
     setResult(null);
     setSubmitError(null);
   }
 
+  const hasStandMap = Boolean(selected?.ticketTypes.some((type) => type.standId));
   const lines = useMemo(() => {
     if (!selected) return [];
     return selected.ticketTypes
+      .filter((type) => !hasStandMap || type.standId === selectedStand)
       .map((type) => ({ type, quantity: quantities[type.id] ?? 0 }))
       .filter((line) => line.quantity > 0);
-  }, [selected, quantities]);
+  }, [selected, quantities, selectedStand]);
+
+  const standInfo: Array<{ id: StandId; label: string; side: string }> = [
+    { id: 'DELACOURT', label: 'Delacourt', side: 'Nord · but nord' },
+    { id: 'TRANNIN', label: 'Trannin', side: 'Sud · but sud' },
+    { id: 'MAREK_XERCES', label: 'Marek / Xercès', side: 'Est · kop' },
+    { id: 'LEPAGNOT', label: 'Lepagnot', side: 'Ouest · honneur' }
+  ];
+  const standPrices = (standId: StandId) =>
+    selected?.ticketTypes.filter((type) => type.standId === standId && type.active && type.available > 0) ?? [];
 
   const total = useMemo(
     () => lines.reduce((sum, line) => sum + line.type.price * line.quantity, 0),
@@ -105,6 +119,11 @@ export default function EventsPage() {
       if (totalCount > 10) return current;
       return nextMap;
     });
+  }
+
+  function chooseStand(standId: StandId) {
+    setSelectedStand(standId);
+    setQuantities({});
   }
 
   async function submitOrder(event: React.FormEvent) {
@@ -363,11 +382,47 @@ export default function EventsPage() {
                 </h2>
                 <div className="mt-2 flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-400/10 dark:text-amber-200">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>Choisissez votre tribune ou votre côté du stade en sélectionnant la catégorie correspondante. Le nom de la tribune sera indiqué sur chaque billet.</span>
+                  <span>Choisissez votre tribune sur le plan. Le prix et les catégories disponibles s’actualisent selon le côté sélectionné.</span>
                 </div>
 
+                {hasStandMap && (
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950/50">
+                    <div className="grid grid-cols-[1fr_1.1fr_1fr] grid-rows-[auto_auto_auto] gap-2 text-center">
+                      {(['DELACOURT'] as StandId[]).map((id) => {
+                        const categories = standPrices(id);
+                        return <button key={id} type="button" onClick={() => chooseStand(id)} disabled={!categories.length} className={`col-span-3 rounded-lg border p-2.5 text-xs font-bold transition ${selectedStand === id ? 'border-red-600 bg-red-700 text-white' : 'border-slate-300 bg-white text-slate-800 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-white'}`}>
+                          NORD · TRIBUNE DELACOURT <span className="block mt-1 font-normal opacity-80">{categories.length ? `Dès ${formatPrice(Math.min(...categories.map((type) => type.price)))}` : 'Indisponible'}</span>
+                        </button>;
+                      })}
+                      {(['LEPAGNOT'] as StandId[]).map((id) => {
+                        const categories = standPrices(id);
+                        return <button key={id} type="button" onClick={() => chooseStand(id)} disabled={!categories.length} className={`row-span-2 rounded-lg border p-2 text-[10px] font-bold transition sm:text-xs ${selectedStand === id ? 'border-red-600 bg-red-700 text-white' : 'border-slate-300 bg-white text-slate-800 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-white'}`}>
+                          OUEST<br />TRIBUNE LEPAGNOT<span className="mt-2 block font-normal opacity-80">{categories.length ? `Dès ${formatPrice(Math.min(...categories.map((type) => type.price)))}` : 'Indisponible'}</span>
+                        </button>;
+                      })}
+                      <div className="flex min-h-24 items-center justify-center rounded-lg border-2 border-dashed border-emerald-700 bg-emerald-100 px-2 text-[10px] font-black uppercase tracking-widest text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200 sm:text-xs">Terrain</div>
+                      {(['MAREK_XERCES'] as StandId[]).map((id) => {
+                        const categories = standPrices(id);
+                        return <button key={id} type="button" onClick={() => chooseStand(id)} disabled={!categories.length} className={`row-span-2 rounded-lg border p-2 text-[10px] font-bold transition sm:text-xs ${selectedStand === id ? 'border-red-600 bg-red-700 text-white' : 'border-slate-300 bg-white text-slate-800 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-white'}`}>
+                          EST<br />TRIBUNE MAREK / XERCÈS<span className="mt-2 block font-normal opacity-80">{categories.length ? `Dès ${formatPrice(Math.min(...categories.map((type) => type.price)))}` : 'Indisponible'}</span>
+                        </button>;
+                      })}
+                      {(['TRANNIN'] as StandId[]).map((id) => {
+                        const categories = standPrices(id);
+                        return <button key={id} type="button" onClick={() => chooseStand(id)} disabled={!categories.length} className={`col-span-3 rounded-lg border p-2.5 text-xs font-bold transition ${selectedStand === id ? 'border-red-600 bg-red-700 text-white' : 'border-slate-300 bg-white text-slate-800 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-white'}`}>
+                          SUD · TRIBUNE TRANNIN <span className="block mt-1 font-normal opacity-80">{categories.length ? `Dès ${formatPrice(Math.min(...categories.map((type) => type.price)))}` : 'Indisponible'}</span>
+                        </button>;
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <div className="mt-4 space-y-3">
+                  {hasStandMap && !selectedStand && (
+                    <p className="rounded-lg border border-dashed border-slate-300 p-3 text-center text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">Sélectionnez une tribune sur le plan pour afficher les billets et tarifs.</p>
+                  )}
                   {selected.ticketTypes.map((type) => {
+                    if (hasStandMap && type.standId !== selectedStand) return null;
                     const quantity = quantities[type.id] ?? 0;
                     const max = Math.min(type.maxPerOrder, type.available);
                     return (
@@ -376,9 +431,9 @@ export default function EventsPage() {
                         className={`flex items-center justify-between gap-3 rounded-xl border p-3 transition-colors dark:border-slate-700 ${quantity > 0 ? 'border-red-500 bg-red-50/60 dark:bg-red-950/20' : 'border-slate-200'}`}
                       >
                         <div className="min-w-0">
-                          <div className="flex items-center gap-1.5 text-sm font-bold text-slate-900 dark:text-white">
+                          <div className="flex items-start gap-1.5 text-sm font-bold text-slate-900 dark:text-white">
                             <MapPin className="h-3.5 w-3.5 shrink-0 text-red-600 dark:text-amber-400" />
-                            {type.name}
+                            <span>{standInfo.find((stand) => stand.id === type.standId)?.label ?? ''}{type.standId ? ' · ' : ''}{type.name}</span>
                           </div>
                           <div className="text-xs text-slate-500 dark:text-slate-400">
                             {formatPrice(type.price)} · {type.available} restant(s)

@@ -29,7 +29,8 @@ import {
   AdminOrderDetail,
   AdminOrderSummary,
   AdminStats,
-  EventStatus
+  EventStatus,
+  StandId
 } from '../types/ticketing';
 
 type Tab = 'dashboard' | 'events' | 'orders' | 'bank' | 'checkin';
@@ -51,6 +52,7 @@ interface EventFormState {
 
 interface TicketTypeFormState {
   id?: string;
+  standId: StandId | '';
   name: string;
   description: string;
   price: string;
@@ -73,6 +75,7 @@ const EMPTY_EVENT: EventFormState = {
 
 const EMPTY_TYPE: TicketTypeFormState = {
   name: '',
+  standId: '',
   description: '',
   price: '',
   stock: '',
@@ -427,8 +430,12 @@ export default function AdminPage() {
     setSavingType(true);
     setTypeError(null);
     try {
+      if (!typeForm.standId) {
+        throw new Error('Choisissez la tribune de cette catégorie.');
+      }
       const payload = {
         name: typeForm.name,
+        standId: typeForm.standId,
         description: typeForm.description,
         price: Number(typeForm.price.replace(',', '.')),
         stock: Number(typeForm.stock),
@@ -1457,7 +1464,7 @@ export default function AdminPage() {
                   Catégories de billets
                 </h3>
                 <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                  Indiquez la tribune ou le côté du stade dans le nom de chaque catégorie. Les clients verront ce nom au moment du choix et sur leur récapitulatif.
+                  Associez chaque catégorie à une tribune. Les clients choisissent le côté sur le plan, puis voient les catégories et les prix disponibles pour cette tribune.
                 </p>
 
                 {!eventForm.id && (
@@ -1505,6 +1512,7 @@ export default function AdminPage() {
                               onClick={() =>
                                 setTypeForm({
                                   id: type.id,
+                                  standId: type.standId ?? '',
                                   name: type.name,
                                   description: type.description,
                                   price: String(type.price),
@@ -1545,12 +1553,25 @@ export default function AdminPage() {
                       {typeForm.id ? 'Modifier la catégorie' : 'Ajouter une catégorie'}
                     </div>
                     <div className="mt-2 space-y-2">
+                      <select
+                        value={typeForm.standId}
+                        onChange={(event) =>
+                          setTypeForm({ ...typeForm, standId: event.target.value as StandId | '' })
+                        }
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-600 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                      >
+                        <option value="" disabled>Choisir la tribune</option>
+                        <option value="DELACOURT">Tribune Delacourt · Nord</option>
+                        <option value="TRANNIN">Tribune Trannin · Sud</option>
+                        <option value="MAREK_XERCES">Tribune Marek / Xercès · Est</option>
+                        <option value="LEPAGNOT">Tribune Lepagnot · Ouest</option>
+                      </select>
                       <input
                         value={typeForm.name}
                         onChange={(event) =>
                           setTypeForm({ ...typeForm, name: event.target.value })
                         }
-                        placeholder="Nom (ex. Tribune Trannin – côté nord)"
+                        placeholder="Nom (ex. Catégorie 1 / Kop)"
                         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-600 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                       />
                       <div className="grid grid-cols-3 gap-2">
@@ -1587,7 +1608,7 @@ export default function AdminPage() {
                         onChange={(event) =>
                           setTypeForm({ ...typeForm, description: event.target.value })
                         }
-                        placeholder="Emplacement ou côté de la tribune (facultatif)"
+                        placeholder="Bloc, niveau, porte ou vue (facultatif)"
                         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-600 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                       />
                     </div>
