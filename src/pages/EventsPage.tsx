@@ -21,7 +21,7 @@ import {
   Ticket
 } from 'lucide-react';
 import { PublicFooter, PublicHeader } from '../components/PublicHeader';
-import { StadiumMap } from '../components/StadiumMap';
+import { DigitalStadium } from '../components/DigitalStadium';
 import { eventsApi, getErrorMessage } from '../services/api';
 import { GuestOrderResult, Match, Sector, StandId, TicketingEvent } from '../types/ticketing';
 
@@ -112,7 +112,7 @@ export default function EventsPage() {
   const eventSectors = useMemo<Sector[]>(() => {
     if (!selected) return [];
     return selected.ticketTypes.flatMap((type, index) => {
-      if (!type.standId) return [];
+      if (!type.standId || !type.active || type.available <= 0) return [];
       const stand = STANDS.find((item) => item.id === type.standId)!;
       return [{
         id: type.id,
@@ -134,7 +134,7 @@ export default function EventsPage() {
   const eventMapMatch = useMemo<Match | null>(() => {
     if (!selected) return null;
     const stands = Object.fromEntries(STANDS.map((stand) => {
-      const types = selected.ticketTypes.filter((type) => type.standId === stand.id && type.active);
+      const types = selected.ticketTypes.filter((type) => type.standId === stand.id && type.active && type.available > 0);
       const availableSeats = types.reduce((sum, type) => sum + type.available, 0);
       return [stand.id, {
         id: stand.id,
@@ -167,7 +167,6 @@ export default function EventsPage() {
     };
   }, [selected]);
 
-  const selectedSector = eventSectors.find((sector) => sector.id === selectedSectorId) ?? null;
   const featuredEvent = events.find((event) => event.featured) ?? events[0] ?? null;
 
   const total = useMemo(
@@ -611,27 +610,28 @@ export default function EventsPage() {
                 {hasStandMap && (
                   eventMapMatch && (
                     <div className="mt-4">
-                      <StadiumMap
-                        match={eventMapMatch}
+                      <DigitalStadium
+                        stands={STANDS.map((stand) => ({
+                          ...stand,
+                          direction: stand.side,
+                          price: eventMapMatch.stands[stand.id].price,
+                          availableSeats: eventMapMatch.stands[stand.id].availableSeats
+                        }))}
                         sectors={eventSectors}
                         selectedStand={selectedStand}
+                        selectedSectorId={selectedSectorId}
                         onSelectStand={chooseStand}
-                        selectedSector={selectedSector}
                         onSelectSector={(sector) => {
                           setSelectedStand(sector.standId);
                           setSelectedSectorId(sector.id);
                           setQuantities({});
                         }}
-                        onPreviewPitch={() => undefined}
                       />
                     </div>
                   )
                 )}
 
                 <div className="mt-4 space-y-3">
-                  {hasStandMap && !selectedStand && (
-                    <p className="rounded-lg border border-dashed border-slate-300 p-3 text-center text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">Sélectionnez une tribune sur le plan pour afficher les billets et tarifs.</p>
-                  )}
                   {selected.ticketTypes.map((type) => {
                     if (hasStandMap && type.standId !== selectedStand) return null;
                     const quantity = quantities[type.id] ?? 0;
