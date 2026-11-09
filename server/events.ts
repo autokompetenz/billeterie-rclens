@@ -83,6 +83,10 @@ export interface GuestOrderRow {
   id: string;
   order_number: string;
   event_id: string | null;
+  event_snapshot_id: string | null;
+  event_title: string | null;
+  event_date: Date | string | null;
+  event_venue: string | null;
   buyer_name: string;
   buyer_email: string;
   buyer_phone: string | null;
@@ -414,13 +418,18 @@ eventsRouter.post(
 
       await tx.execute(
         `INSERT INTO guest_orders (
-           id, order_number, event_id, buyer_name, buyer_email, buyer_phone,
-           total_cents, status, payment_ref, created_at
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,'pending_payment',$8,$9)`,
+           id, order_number, event_id, event_snapshot_id, event_title, event_date,
+           event_venue, buyer_name, buyer_email, buyer_phone, total_cents,
+           status, payment_ref, created_at
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending_payment',$12,$13)`,
         [
           orderId,
           orderNumber,
           event.id,
+          event.id,
+          event.title,
+          event.event_date,
+          event.venue,
           buyerName,
           buyerEmail,
           buyerPhone ?? null,
@@ -652,6 +661,16 @@ eventsRouter.get(
         order.id
       ])
     ]);
+    const historicalEvent = event ?? (
+      order.event_title && order.event_date && order.event_venue
+        ? {
+            id: order.event_snapshot_id ?? 'deleted-event',
+            title: order.event_title,
+            event_date: order.event_date,
+            venue: order.event_venue
+          }
+        : undefined
+    );
 
     res.json({
       found: true,
@@ -662,12 +681,12 @@ eventsRouter.get(
           ? order.created_at.toISOString()
           : new Date(order.created_at).toISOString(),
       total: centsToEuros(order.total_cents),
-      event: event
+      event: historicalEvent
         ? {
-            id: event.id,
-            title: event.title,
-            formattedDate: formatEventDate(event.event_date),
-            venue: event.venue
+            id: historicalEvent.id,
+            title: historicalEvent.title,
+            formattedDate: formatEventDate(historicalEvent.event_date),
+            venue: historicalEvent.venue
           }
         : null,
       buyer: {
@@ -716,9 +735,22 @@ eventsRouter.get(
       throw notFound('Billet introuvable.');
     }
 
-    const event = ticket.event_id
+    const linkedEvent = ticket.event_id
       ? await queryOne<EventRow>('SELECT * FROM events WHERE id = $1', [ticket.event_id])
       : undefined;
+    const order = linkedEvent
+      ? undefined
+      : await queryOne<GuestOrderRow>('SELECT * FROM guest_orders WHERE id = $1', [ticket.order_id]);
+    const event = linkedEvent ?? (
+      order?.event_title && order.event_date && order.event_venue
+        ? {
+            id: order.event_snapshot_id ?? 'deleted-event',
+            title: order.event_title,
+            event_date: order.event_date,
+            venue: order.event_venue
+          }
+        : undefined
+    );
 
     res.json({
       found: true,

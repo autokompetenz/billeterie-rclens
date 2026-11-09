@@ -487,18 +487,19 @@ adminRouter.delete(
     ]);
     if (!existing) throw notFound('Événement introuvable.');
 
-    const orders = await queryOne<{ total: string }>(
-      'SELECT COUNT(*)::text AS total FROM guest_orders WHERE event_id = $1',
-      [existing.id]
-    );
-    if (Number(orders?.total ?? 0) > 0) {
-      throw conflict(
-        'Cet événement possède des commandes : archivez-le (statut « annulé ») plutôt que de le supprimer.',
-        'EVENT_HAS_ORDERS'
+    await withTransaction(async (tx) => {
+      // Les commandes et billets gardent leur historique après suppression de l'événement.
+      await tx.execute(
+        `UPDATE guest_orders SET
+           event_snapshot_id = COALESCE(event_snapshot_id, $2),
+           event_title = COALESCE(event_title, $3),
+           event_date = COALESCE(event_date, $4),
+           event_venue = COALESCE(event_venue, $5)
+         WHERE event_id = $1`,
+        [existing.id, existing.id, existing.title, existing.event_date, existing.venue]
       );
-    }
-
-    await execute('DELETE FROM events WHERE id = $1', [existing.id]);
+      await tx.execute('DELETE FROM events WHERE id = $1', [existing.id]);
+    });
     res.json({ success: true });
   })
 );
@@ -688,13 +689,14 @@ adminRouter.get(
 
     const rows = await query<
       GuestOrderRow & {
-        event_title: string | null;
-        event_date: Date | string | null;
+        display_event_title: string | null;
+        display_event_date: Date | string | null;
         ticket_count: string;
         checked_in_count: string;
       }
     >(
-      `SELECT o.*, e.title AS event_title, e.event_date AS event_date,
+      `SELECT o.*, COALESCE(e.title, o.event_title) AS display_event_title,
+              COALESCE(e.event_date, o.event_date) AS display_event_date,
               COUNT(t.id)::text AS ticket_count,
               COUNT(t.id) FILTER (WHERE t.status = 'used')::text AS checked_in_count
          FROM guest_orders o
@@ -740,8 +742,8 @@ adminRouter.get(
     const guestResults = rows.map((row) => ({
         orderNumber: row.order_number,
         eventId: row.event_id,
-        eventTitle: row.event_title,
-        eventDate: row.event_date ? formatEventDate(row.event_date) : null,
+        eventTitle: row.display_event_title,
+        eventDate: row.display_event_date ? formatEventDate(row.display_event_date) : null,
         buyerName: row.buyer_name,
         buyerEmail: row.buyer_email,
         buyerPhone: row.buyer_phone,
@@ -852,6 +854,17 @@ adminRouter.get(
       )
     ]);
 
+    const historicalEvent = event ?? (
+      order.event_title && order.event_date && order.event_venue
+        ? {
+            id: order.event_snapshot_id ?? 'deleted-event',
+            title: order.event_title,
+            event_date: order.event_date,
+            venue: order.event_venue
+          }
+        : undefined
+    );
+
     res.json({
       orderNumber: order.order_number,
       status: order.status,
@@ -859,12 +872,12 @@ adminRouter.get(
         order.created_at instanceof Date ? order.created_at.toISOString() : order.created_at,
       total: centsToEuros(order.total_cents),
       paymentRef: order.payment_ref,
-      event: event
+      event: historicalEvent
         ? {
-            id: event.id,
-            title: event.title,
-            formattedDate: formatEventDate(event.event_date),
-            venue: event.venue
+            id: historicalEvent.id,
+            title: historicalEvent.title,
+            formattedDate: formatEventDate(historicalEvent.event_date),
+            venue: historicalEvent.venue
           }
         : null,
       buyer: {

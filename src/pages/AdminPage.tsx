@@ -488,7 +488,7 @@ export default function AdminPage() {
   async function removeEvent(event: AdminEvent) {
     if (
       !window.confirm(
-        `Supprimer l’événement « ${event.title} » ? Cette action est irréversible.`
+        `Supprimer l’événement « ${event.title} » ? Il sera retiré du site, mais les commandes et billets existants seront conservés avec leurs informations d’origine. Cette action est irréversible.`
       )
     ) {
       return;

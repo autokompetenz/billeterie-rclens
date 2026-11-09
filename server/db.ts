@@ -408,6 +408,10 @@ async function createSchema(): Promise<void> {
       id            TEXT PRIMARY KEY,
       order_number  TEXT NOT NULL UNIQUE,
       event_id      TEXT REFERENCES events(id) ON DELETE SET NULL,
+      event_snapshot_id TEXT,
+      event_title   TEXT,
+      event_date    TIMESTAMPTZ,
+      event_venue   TEXT,
       buyer_name    TEXT NOT NULL,
       buyer_email   TEXT NOT NULL,
       buyer_phone   TEXT,
@@ -479,6 +483,10 @@ async function createSchema(): Promise<void> {
     ALTER TABLE seats DROP CONSTRAINT IF EXISTS seats_held_by_fkey;
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_ref TEXT;
     ALTER TABLE event_ticket_types ADD COLUMN IF NOT EXISTS stand_id TEXT;
+    ALTER TABLE guest_orders ADD COLUMN IF NOT EXISTS event_snapshot_id TEXT;
+    ALTER TABLE guest_orders ADD COLUMN IF NOT EXISTS event_title TEXT;
+    ALTER TABLE guest_orders ADD COLUMN IF NOT EXISTS event_date TIMESTAMPTZ;
+    ALTER TABLE guest_orders ADD COLUMN IF NOT EXISTS event_venue TEXT;
   `);
   await getPool().query(
     'CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_payment_ref ON orders(payment_ref) WHERE payment_ref IS NOT NULL'

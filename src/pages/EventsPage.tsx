@@ -362,7 +362,7 @@ export default function EventsPage() {
     <div className={`min-h-screen bg-[#fcf9f8] dark:bg-slate-950 ${step === 'catalogue' ? 'pb-16 md:pb-0' : ''}`}>
       <PublicHeader active="events" />
 
-      <main className={step === 'catalogue' ? 'mx-auto w-full max-w-7xl px-0 pb-8' : 'mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-12'}>
+      <main className={step === 'catalogue' ? 'mx-auto w-full max-w-7xl px-0 pb-8' : step === 'checkout' ? 'mx-auto max-w-6xl px-4 pb-40 pt-6 sm:px-6 sm:py-12 sm:pb-12' : 'mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-12'}>
         {step === 'catalogue' && (
           <>
             <HomepageHero event={featuredEvent} events={events} loading={loading} onReserve={openEvent} />
@@ -722,6 +722,7 @@ export default function EventsPage() {
               </div>
 
               <form
+                id="checkout-form"
                 onSubmit={submitOrder}
                 className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6"
               >
@@ -882,7 +883,7 @@ export default function EventsPage() {
                 <button
                   type="submit"
                   disabled={submitting || totalTickets === 0}
-                  className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-red-700 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-red-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 dark:disabled:bg-slate-700"
+                  className="mt-5 hidden w-full items-center justify-center gap-2 rounded bg-[#111111] px-4 py-3 font-heading text-sm font-black uppercase tracking-wide text-white shadow-sm transition hover:bg-black disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 sm:flex"
                 >
                   {submitting ? (
                     <>
@@ -996,6 +997,37 @@ export default function EventsPage() {
           </section>
         )}
       </main>
+
+      {step === 'checkout' && selected && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-6px_20px_rgba(15,23,42,0.12)] backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95 sm:hidden">
+          <div className="mx-auto max-w-2xl">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[9px] font-black uppercase tracking-widest text-[#ba0819]">
+                  {selectedStand ? `Tribune ${STANDS.find((stand) => stand.id === selectedStand)?.label}` : 'Votre sélection'}
+                </div>
+                <div className="truncate text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                  {lines.length
+                    ? lines.map((line) => `${line.quantity} × ${line.type.name}`).join(' · ')
+                    : 'Choisissez vos billets pour voir le total'}
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Total</div>
+                <div className="font-heading text-xl font-black leading-none text-[#121212] dark:text-white">{formatPrice(total)}</div>
+              </div>
+            </div>
+            <button
+              type="submit"
+              form="checkout-form"
+              disabled={submitting || totalTickets === 0}
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded bg-[#fed100] px-4 py-2.5 font-heading text-sm font-black uppercase tracking-wide text-[#231b00] transition hover:brightness-105 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
+            >
+              {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Traitement…</> : <>Confirmer la commande <ArrowRight className="h-4 w-4" /></>}
+            </button>
+          </div>
+        </div>
+      )}
 
       {step === 'catalogue' && (
         <nav aria-label="Navigation rapide" className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 shadow-[0_-1px_8px_rgba(0,0,0,0.06)] backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95 md:hidden">
