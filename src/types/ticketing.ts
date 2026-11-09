@@ -216,7 +216,9 @@ export interface GuestOrderTicket {
 export interface GuestOrderResult {
   success: boolean;
   orderNumber: string;
+  status: string;
   total: number;
+  payment: BankTransferDetails;
   event: {
     id: string;
     title: string;
@@ -226,6 +228,15 @@ export interface GuestOrderResult {
   buyer: { name: string; email: string };
   tickets: GuestOrderTicket[];
   verificationUrl: string;
+}
+
+export interface BankTransferDetails {
+  accountHolder: string;
+  iban: string;
+  bic: string;
+  method: string;
+  reference: string;
+  amount: number;
 }
 
 export interface VerifiedOrder {
@@ -282,6 +293,7 @@ export interface AdminOrderSummary {
   buyerName: string;
   buyerEmail: string;
   buyerPhone: string | null;
+  paymentRef: string | null;
   total: number;
   status: string;
   createdAt: string;

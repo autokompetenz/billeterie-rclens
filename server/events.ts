@@ -10,6 +10,11 @@ import {
 } from './db.ts';
 import { asyncHandler, badRequest, conflict, notFound, optionalString, requireEmail, requireString } from './http.ts';
 import { sendOrderEmails, type MailOrder } from './mailer.ts';
+import {
+  createPaymentReference,
+  getBankAccountSettings,
+  paymentInstructions
+} from './payment.ts';
 
 /**
  * Catalogue public des événements + commandes invité + vérification.
@@ -289,7 +294,6 @@ eventsRouter.post(
     const buyerName = requireString(body.buyer?.name, 'nom', { min: 2, max: 120 });
     const buyerEmail = requireEmail(body.buyer?.email);
     const buyerPhone = optionalString(body.buyer?.phone, 40);
-    const paymentReference = optionalString(body.payment?.reference, 120);
 
     const items: GuestItemInput[] = Array.isArray(body.items) ? body.items : [];
     if (items.length === 0) {
@@ -311,6 +315,8 @@ eventsRouter.post(
     }
 
     const orderNumber = await generateOrderNumber();
+    const bankAccount = await getBankAccountSettings();
+    const paymentReference = await createPaymentReference();
     const orderId = newId('gord');
     const createdAt = isoNow();
 
@@ -402,7 +408,7 @@ eventsRouter.post(
         `INSERT INTO guest_orders (
            id, order_number, event_id, buyer_name, buyer_email, buyer_phone,
            total_cents, status, payment_ref, created_at
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,'paid',$8,$9)`,
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,'pending_payment',$8,$9)`,
         [
           orderId,
           orderNumber,
@@ -411,7 +417,7 @@ eventsRouter.post(
           buyerEmail,
           buyerPhone ?? null,
           totalCents,
-          paymentReference ?? `SIM-${randomInt(100000, 999999)}`,
+          paymentReference,
           createdAt
         ]
       );
@@ -444,7 +450,7 @@ eventsRouter.post(
             event_id: event.id,
             beneficiary_name: beneficiary,
             price_cents: line.type.price_cents,
-            status: 'valid',
+            status: 'pending_payment',
             checked_in_at: null,
             created_at: createdAt
           };
@@ -453,7 +459,7 @@ eventsRouter.post(
             `INSERT INTO guest_tickets (
                id, order_id, ticket_code, ticket_type_id, ticket_type_name,
                event_id, beneficiary_name, price_cents, status, created_at
-             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'valid',$9)`,
+             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending_payment',$9)`,
             [
               ticket.id,
               ticket.order_id,
@@ -495,6 +501,7 @@ eventsRouter.post(
       buyerPhone,
       totalCents: result.totalCents,
       createdAt,
+      payment: paymentInstructions(bankAccount, paymentReference, result.totalCents),
       tickets: result.createdTickets.map((ticket) => ({
         code: ticket.ticket_code,
         typeName: ticket.ticket_type_name,
@@ -509,7 +516,9 @@ eventsRouter.post(
     res.status(201).json({
       success: true,
       orderNumber,
+      status: 'pending_payment',
       total: centsToEuros(result.totalCents),
+      payment: paymentInstructions(bankAccount, paymentReference, result.totalCents),
       event: {
         id: result.event.id,
         title: result.event.title,

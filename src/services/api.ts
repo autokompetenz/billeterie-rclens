@@ -4,6 +4,7 @@ import {
   AdminOrderSummary,
   AdminStats,
   AuthUser,
+  BankTransferDetails,
   CartItem,
   ETicket,
   EventStatus,
@@ -128,7 +129,7 @@ export function clearStoredToken(): void {
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   auth?: boolean;
   signal?: AbortSignal;
@@ -247,6 +248,8 @@ interface HoldResponse {
 export interface CreateOrderResult {
   success: boolean;
   orderId: string;
+  status: string;
+  payment: BankTransferDetails;
   tickets: ETicket[];
   total: number;
   discount: number;
@@ -383,7 +386,6 @@ export interface GuestOrderInput {
     quantity: number;
     beneficiaries?: string[];
   }>;
-  payment?: { reference?: string };
 }
 
 export const eventsApi = {
@@ -454,6 +456,28 @@ export const adminApi = {
 
   session(): Promise<{ authenticated: boolean }> {
     return request('/admin/session');
+  },
+
+  getBankTransferSettings(): Promise<{
+    accountHolder: string;
+    iban: string;
+    bic: string;
+  } | null> {
+    return request('/admin/bank-transfer');
+  },
+
+  saveBankTransferSettings(input: {
+    accountHolder: string;
+    iban: string;
+    bic: string;
+  }): Promise<{ accountHolder: string; iban: string; bic: string }> {
+    return request('/admin/bank-transfer', { method: 'PUT', body: input });
+  },
+
+  confirmOrderPayment(orderNumber: string): Promise<{ success: boolean }> {
+    return request(`/admin/orders/${encodeURIComponent(orderNumber)}/confirm-payment`, {
+      method: 'POST'
+    });
   },
 
   uploadEventImage(dataUrl: string): Promise<{ id: string; url: string }> {

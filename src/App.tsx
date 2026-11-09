@@ -10,6 +10,7 @@ import {
   OrderAddons,
   TariffType,
   TourPackage,
+  BankTransferDetails,
 } from './types/ticketing';
 import {
   ticketingApi,
@@ -38,6 +39,7 @@ import {
   Flame,
   Code2,
   CheckCircle2,
+  Landmark,
   Sparkles,
   Sun,
   Moon,
@@ -96,6 +98,7 @@ export default function App() {
   const [orderConfirmation, setOrderConfirmation] = useState<{
     orderId: string;
     ticketsCount: number;
+    payment: BankTransferDetails;
   } | null>(null);
 
   // Theme Management (Fond Blanc / Fond Noir) - Stored in localStorage
@@ -319,8 +322,7 @@ export default function App() {
   };
 
   // Commande confirmée : les e-billets proviennent directement du serveur
-  const handleOrderSuccess = (orderId: string, newTickets: ETicket[]) => {
-    setMyTickets((prev) => [...newTickets, ...prev]);
+  const handleOrderSuccess = (orderId: string, newTickets: ETicket[], payment: BankTransferDetails) => {
     setCart([]);
     setHoldId(null);
     setHoldExpiresAt(null);
@@ -328,8 +330,8 @@ export default function App() {
     setIsCartOpen(false);
     setIsSeatPickerOpen(false);
     setSelectedSector(null);
-    setOrderConfirmation({ orderId, ticketsCount: newTickets.length });
-    setActiveTab('tickets');
+    setOrderConfirmation({ orderId, ticketsCount: newTickets.length, payment });
+    setActiveTab('matches');
     refreshCatalog();
   };
 
@@ -588,26 +590,33 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8">
         {/* Order confirmation banner if just purchased */}
         {orderConfirmation && (
-          <div className="p-4 sm:p-5 rounded-2xl bg-emerald-900/90 border border-emerald-700 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-300 shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-800 flex items-center justify-center text-emerald-200 shrink-0">
-                <CheckCircle2 className="w-6 h-6" />
+          <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-slate-900 shadow-lg animate-in slide-in-from-top-4 duration-300 dark:border-amber-900 dark:bg-amber-950/30 dark:text-white sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-200 text-amber-900 dark:bg-amber-900 dark:text-amber-200">
+                  <Landmark className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-heading text-lg font-bold uppercase">
+                    Commande {orderConfirmation.orderId} · virement en attente
+                  </h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    Effectuez le virement instantané. Les {orderConfirmation.ticketsCount} billet(s) seront activés après confirmation de sa réception.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-heading text-lg font-bold uppercase text-white">
-                  Commande {orderConfirmation.orderId} confirmée !
-                </h3>
-                <p className="text-xs text-emerald-100">
-                  Vos {orderConfirmation.ticketsCount} e-billet(s) ont été générés et enregistrés. Vous pouvez les retrouver ci-dessous.
-                </p>
-              </div>
+              <button
+                onClick={() => setOrderConfirmation(null)}
+                className="text-xs font-semibold text-slate-500 underline hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+              >Masquer</button>
             </div>
-            <button
-              onClick={() => setOrderConfirmation(null)}
-              className="text-xs font-semibold text-emerald-200 hover:text-white underline self-start sm:self-auto cursor-pointer"
-            >
-              Masquer
-            </button>
+            <div className="mt-4 grid gap-3 rounded-xl border border-amber-200 bg-white p-4 text-sm dark:border-amber-900 dark:bg-slate-950 sm:grid-cols-2">
+              <div><span className="text-xs text-slate-500 dark:text-slate-400">Titulaire du compte</span><div className="font-bold">{orderConfirmation.payment.accountHolder}</div></div>
+              <div><span className="text-xs text-slate-500 dark:text-slate-400">Montant exact</span><div className="font-bold">{orderConfirmation.payment.amount.toFixed(2).replace('.', ',')} €</div></div>
+              <div className="sm:col-span-2"><span className="text-xs text-slate-500 dark:text-slate-400">IBAN</span><div className="break-all font-mono font-bold">{orderConfirmation.payment.iban}</div></div>
+              <div><span className="text-xs text-slate-500 dark:text-slate-400">BIC</span><div className="font-mono font-bold">{orderConfirmation.payment.bic}</div></div>
+              <div><span className="text-xs text-slate-500 dark:text-slate-400">Motif obligatoire</span><div className="font-mono font-bold text-red-700 dark:text-amber-300">{orderConfirmation.payment.reference}</div></div>
+            </div>
           </div>
         )}
 

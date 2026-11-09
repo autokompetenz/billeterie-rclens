@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { CartItem, OrderAddons, ETicket } from '../types/ticketing';
+import { BankTransferDetails, CartItem, OrderAddons, ETicket } from '../types/ticketing';
 import { ticketingApi, getErrorMessage } from '../services/api';
-import { X, Lock, CreditCard, ShieldCheck, CheckCircle2, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
+import { X, Lock, CheckCircle2, ArrowRight, Loader2, AlertCircle, Landmark } from 'lucide-react';
 
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   cart: CartItem[];
   addons: OrderAddons;
-  onOrderSuccess: (orderId: string, tickets: ETicket[]) => void;
+  onOrderSuccess: (orderId: string, tickets: ETicket[], payment: BankTransferDetails) => void;
   buyerName?: string;
   buyerEmail?: string;
 }
@@ -31,20 +31,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     termsAccepted: false
   });
 
-  const [paymentDetails, setPaymentDetails] = useState({
-    cardNumber: '',
-    expiry: '',
-    cvv: '',
-    cardholder: ''
-  });
-
   const [promoCodeInput, setPromoCodeInput] = useState('');
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [appliedPromoCode, setAppliedPromoCode] = useState<string | null>(null);
   const [promoMessage, setPromoMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Pré-remplit les coordonnées avec le compte connecté à chaque ouverture
+  // Réinitialise le formulaire à chaque ouverture.
   useEffect(() => {
     if (!isOpen) return;
     const parts = (buyerName || '').split(' ');
@@ -55,10 +48,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       email: buyerEmail || '',
       phone: '',
       termsAccepted: false
-    }));
-    setPaymentDetails((prev) => ({
-      ...prev,
-      cardholder: (buyerName || '').toUpperCase()
     }));
     setStep('info');
     setError(null);
@@ -111,7 +100,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
       if (res.success) {
         setTimeout(() => {
-          onOrderSuccess(res.orderId, res.tickets);
+          onOrderSuccess(res.orderId, res.tickets, res.payment);
           onClose();
         }, 800);
       }
@@ -129,7 +118,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           <div className="flex items-center gap-2">
             <Lock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             <h2 className="font-heading text-lg sm:text-xl font-bold uppercase text-slate-900 dark:text-white tracking-tight">
-              Paiement Sécurisé Billetterie
+              Commande par virement bancaire
             </h2>
           </div>
           {step !== 'processing' && (
@@ -161,10 +150,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 : 'text-slate-500 dark:text-slate-400'
             }`}
           >
-            2. Règlement Bancaire
+            2. Virement instantané
           </span>
           <span className="text-slate-300 dark:text-slate-700">➔</span>
-          <span className="text-slate-500 dark:text-slate-400">3. E-Billets Immédiats</span>
+          <span className="text-slate-500 dark:text-slate-400">3. Activation des billets après paiement</span>
         </div>
 
         {/* Modal Body */}
@@ -294,16 +283,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
           {step === 'payment' && (
             <form onSubmit={handleSubmitPayment} className="space-y-4">
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                <div>
-                  <span className="text-xs text-slate-500 dark:text-slate-400">Montant total de la commande :</span>
-                  <div className="font-heading text-2xl font-black text-red-700 dark:text-amber-400 tabular-nums">
-                    {grandTotal.toFixed(2)} €
-                  </div>
+              <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
+                <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white">
+                  <Landmark className="h-5 w-5 text-red-700 dark:text-amber-400" />
+                  Virement instantané SEPA
                 </div>
-                <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>3D Secure 2.0</span>
+                <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                  Après l’enregistrement de votre commande, les coordonnées bancaires, le montant exact et le motif à indiquer vous seront affichés ici et envoyés par e-mail. Vos billets seront activés après réception du virement.
+                </p>
+                <div className="mt-3 flex justify-between border-t border-amber-200 pt-3 text-sm dark:border-amber-900">
+                  <span className="text-slate-600 dark:text-slate-300">Montant à virer</span>
+                  <strong className="text-slate-950 dark:text-white">{grandTotal.toFixed(2)} €</strong>
                 </div>
               </div>
 
@@ -313,72 +303,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <span>{error}</span>
                 </div>
               )}
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Nom sur la carte bancaire
-                </label>
-                <input
-                  type="text"
-                  value={paymentDetails.cardholder}
-                  onChange={(e) =>
-                    setPaymentDetails((prev) => ({ ...prev, cardholder: e.target.value }))
-                  }
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white uppercase focus:outline-none focus:border-amber-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Numéro de carte bancaire
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={paymentDetails.cardNumber}
-                    onChange={(e) =>
-                      setPaymentDetails((prev) => ({ ...prev, cardNumber: e.target.value }))
-                    }
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white font-mono focus:outline-none focus:border-amber-500"
-                    required
-                  />
-                  <CreditCard className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Date expiration
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="MM/AA"
-                    value={paymentDetails.expiry}
-                    onChange={(e) =>
-                      setPaymentDetails((prev) => ({ ...prev, expiry: e.target.value }))
-                    }
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white font-mono text-center focus:outline-none focus:border-amber-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Cryptogramme (CVV)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="123"
-                    value={paymentDetails.cvv}
-                    onChange={(e) =>
-                      setPaymentDetails((prev) => ({ ...prev, cvv: e.target.value }))
-                    }
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white font-mono text-center focus:outline-none focus:border-amber-500"
-                    required
-                  />
-                </div>
-              </div>
 
               <div className="flex items-center gap-3 pt-2">
                 <button
@@ -392,8 +316,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   type="submit"
                   className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-heading font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-emerald-600/20 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <Lock className="w-4 h-4" />
-                  <span>Confirmer et Payer {grandTotal.toFixed(2)} €</span>
+                  <Landmark className="w-4 h-4" />
+                  <span>Enregistrer la commande</span>
                 </button>
               </div>
             </form>
@@ -404,10 +328,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <Loader2 className="w-12 h-12 text-amber-500 animate-spin" />
               <div>
                 <h3 className="font-heading text-lg font-bold uppercase text-slate-900 dark:text-white">
-                  Validation bancaire 3D Secure en cours...
+                  Enregistrement de votre commande...
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
-                  Génération sécurisée de vos e-billets officiels avec QR codes nominatifs uniques.
+                  Préparation de vos consignes de virement et de vos billets.
                 </p>
               </div>
             </div>

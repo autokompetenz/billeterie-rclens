@@ -285,6 +285,7 @@ async function createSchema(): Promise<void> {
       discount_cents      INTEGER NOT NULL,
       total_cents         INTEGER NOT NULL,
       promo_code          TEXT,
+      payment_ref         TEXT,
       addons_json         TEXT NOT NULL,
       status              TEXT NOT NULL DEFAULT 'paid',
       created_at          TEXT NOT NULL
@@ -410,12 +411,14 @@ async function createSchema(): Promise<void> {
       buyer_email   TEXT NOT NULL,
       buyer_phone   TEXT,
       total_cents   INTEGER NOT NULL,
-      status        TEXT NOT NULL DEFAULT 'paid',
+      status        TEXT NOT NULL DEFAULT 'pending_payment',
       payment_ref   TEXT,
       created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS idx_guest_orders_email ON guest_orders(LOWER(buyer_email));
     CREATE INDEX IF NOT EXISTS idx_guest_orders_event ON guest_orders(event_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_guest_orders_payment_ref
+      ON guest_orders(payment_ref) WHERE payment_ref IS NOT NULL;
 
     CREATE TABLE IF NOT EXISTS guest_order_items (
       id               TEXT PRIMARY KEY,
@@ -454,6 +457,14 @@ async function createSchema(): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS idx_email_log_order ON email_log(order_id);
+
+    CREATE TABLE IF NOT EXISTS bank_transfer_settings (
+      id             TEXT PRIMARY KEY CHECK (id = 'default'),
+      account_holder TEXT NOT NULL,
+      iban           TEXT NOT NULL,
+      bic            TEXT NOT NULL,
+      updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
   `);
   // Les réservations sans compte utilisent un identifiant aléatoire de navigateur.
   // Les anciennes installations avaient des clés étrangères vers users sur ces colonnes.
@@ -465,7 +476,11 @@ async function createSchema(): Promise<void> {
     ALTER TABLE tickets ALTER COLUMN user_id DROP NOT NULL;
     ALTER TABLE tickets DROP CONSTRAINT IF EXISTS tickets_user_id_fkey;
     ALTER TABLE seats DROP CONSTRAINT IF EXISTS seats_held_by_fkey;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_ref TEXT;
   `);
+  await getPool().query(
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_payment_ref ON orders(payment_ref) WHERE payment_ref IS NOT NULL'
+  );
 }
 
 /* ------------------------------------------------------------------ */

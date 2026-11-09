@@ -18,7 +18,8 @@ import {
   isoNow,
   newId,
   query,
-  queryOne
+  queryOne,
+  withTransaction
 } from './db.ts';
 import {
   HttpError,
@@ -40,6 +41,7 @@ import {
   type GuestTicketRow,
   type TicketTypeRow
 } from './events.ts';
+import { validateBankAccount } from './payment.ts';
 
 export const adminRouter = Router();
 
@@ -129,6 +131,77 @@ adminRouter.get(
 
 /* Toutes les routes suivantes exigent le cookie admin. */
 adminRouter.use('/admin', requireAdmin);
+
+adminRouter.get(
+  '/admin/bank-transfer',
+  asyncHandler(async (_req, res) => {
+    const row = await queryOne<{
+      account_holder: string;
+      iban: string;
+      bic: string;
+    }>("SELECT account_holder, iban, bic FROM bank_transfer_settings WHERE id = 'default'");
+    res.json(row ? {
+      accountHolder: row.account_holder,
+      iban: row.iban,
+      bic: row.bic
+    } : null);
+  })
+);
+
+adminRouter.put(
+  '/admin/bank-transfer',
+  asyncHandler(async (req, res) => {
+    const account = validateBankAccount(req.body);
+    await execute(
+      `INSERT INTO bank_transfer_settings (id, account_holder, iban, bic, updated_at)
+       VALUES ('default', $1, $2, $3, NOW())
+       ON CONFLICT (id) DO UPDATE SET account_holder = EXCLUDED.account_holder,
+         iban = EXCLUDED.iban, bic = EXCLUDED.bic, updated_at = NOW()`,
+      [account.accountHolder, account.iban, account.bic]
+    );
+    res.json(account);
+  })
+);
+
+adminRouter.post(
+  '/admin/orders/:orderNumber/confirm-payment',
+  asyncHandler(async (req, res) => {
+    const orderNumber = req.params.orderNumber.trim().toUpperCase();
+    const guestOrder = await queryOne<{ id: string; status: string }>(
+      'SELECT id, status FROM guest_orders WHERE UPPER(order_number) = $1',
+      [orderNumber]
+    );
+    if (guestOrder) {
+      if (guestOrder.status !== 'paid') {
+        await withTransaction(async (tx) => {
+          await tx.execute("UPDATE guest_orders SET status = 'paid' WHERE id = $1", [guestOrder.id]);
+          await tx.execute(
+            "UPDATE guest_tickets SET status = 'valid' WHERE order_id = $1 AND status = 'pending_payment'",
+            [guestOrder.id]
+          );
+        });
+      }
+      res.json({ success: true, status: 'paid' });
+      return;
+    }
+
+    const legacyOrder = await queryOne<{ id: string; status: string }>(
+      'SELECT id, status FROM orders WHERE UPPER(id) = $1',
+      [orderNumber]
+    );
+    if (!legacyOrder) throw notFound('Commande introuvable.');
+    if (legacyOrder.status !== 'paid') {
+      await withTransaction(async (tx) => {
+        await tx.execute("UPDATE orders SET status = 'paid' WHERE id = $1", [legacyOrder.id]);
+        await tx.execute(
+          "UPDATE tickets SET status = 'valid' WHERE order_id = $1 AND status = 'pending_payment'",
+          [legacyOrder.id]
+        );
+      });
+    }
+    res.json({ success: true, status: 'paid' });
+  })
+);
 
 adminRouter.post(
   '/admin/images',
@@ -266,7 +339,7 @@ async function adminEventPayload(event: EventRow) {
   const [orderStats, ticketStats] = await Promise.all([
     queryOne<{ orders: string; revenue: string }>(
       `SELECT COUNT(*)::text AS orders,
-              COALESCE(SUM(total_cents), 0)::text AS revenue
+              COALESCE(SUM(total_cents) FILTER (WHERE status = 'paid'), 0)::text AS revenue
          FROM guest_orders
         WHERE event_id = $1`,
       [event.id]
@@ -619,8 +692,37 @@ adminRouter.get(
       params
     );
 
-    res.json(
-      rows.map((row) => ({
+    const legacyConditions: string[] = [];
+    const legacyParams: unknown[] = [];
+    if (search) {
+      legacyParams.push(`%${search}%`);
+      legacyConditions.push(
+        `(o.id ILIKE $1 OR o.buyer_email ILIKE $1 OR o.buyer_name ILIKE $1)`
+      );
+    }
+    const legacyRows = eventId ? [] : await query<{
+      id: string;
+      buyer_name: string;
+      buyer_email: string;
+      total_cents: number;
+      status: string;
+      payment_ref: string | null;
+      created_at: Date | string;
+      event_title: string | null;
+      ticket_count: string;
+      checked_in_count: string;
+    }>(
+      `SELECT o.id, o.buyer_name, o.buyer_email, o.total_cents, o.status,
+              o.payment_ref, o.created_at, MIN(t.opponent) AS event_title,
+              COUNT(t.id)::text AS ticket_count,
+              COUNT(t.id) FILTER (WHERE t.status = 'used')::text AS checked_in_count
+         FROM orders o LEFT JOIN tickets t ON t.order_id = o.id
+        ${legacyConditions.length ? `WHERE ${legacyConditions.join(' AND ')}` : ''}
+        GROUP BY o.id ORDER BY o.created_at DESC LIMIT ${limit}`,
+      legacyParams
+    );
+
+    const guestResults = rows.map((row) => ({
         orderNumber: row.order_number,
         eventId: row.event_id,
         eventTitle: row.event_title,
@@ -628,13 +730,33 @@ adminRouter.get(
         buyerName: row.buyer_name,
         buyerEmail: row.buyer_email,
         buyerPhone: row.buyer_phone,
+        paymentRef: row.payment_ref,
         total: centsToEuros(row.total_cents),
         status: row.status,
         createdAt:
           row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
         ticketCount: Number(row.ticket_count),
         checkedInCount: Number(row.checked_in_count)
-      }))
+      }));
+    const legacyResults = legacyRows.map((row) => ({
+      orderNumber: row.id,
+      eventId: null,
+      eventTitle: row.event_title,
+      eventDate: null,
+      buyerName: row.buyer_name,
+      buyerEmail: row.buyer_email,
+      buyerPhone: null,
+      paymentRef: row.payment_ref,
+      total: centsToEuros(row.total_cents),
+      status: row.status,
+      createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+      ticketCount: Number(row.ticket_count),
+      checkedInCount: Number(row.checked_in_count)
+    }));
+    res.json(
+      [...guestResults, ...legacyResults]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, limit)
     );
   })
 );
@@ -646,7 +768,60 @@ adminRouter.get(
       'SELECT * FROM guest_orders WHERE UPPER(order_number) = $1',
       [req.params.orderNumber.trim().toUpperCase()]
     );
-    if (!order) throw notFound('Commande introuvable.');
+    if (!order) {
+      const legacyOrder = await queryOne<{
+        id: string;
+        buyer_name: string;
+        buyer_email: string;
+        total_cents: number;
+        status: string;
+        payment_ref: string | null;
+        created_at: Date | string;
+      }>('SELECT * FROM orders WHERE UPPER(id) = $1', [req.params.orderNumber.trim().toUpperCase()]);
+      if (!legacyOrder) throw notFound('Commande introuvable.');
+      const tickets = await query<{
+        ticket_number: string;
+        opponent: string;
+        match_id: string;
+        match_date: string;
+        kickoff: string;
+        competition: string;
+        stand_name: string;
+        sector_name: string;
+        beneficiary_name: string;
+        price_cents: number;
+        status: string;
+      }>('SELECT * FROM tickets WHERE order_id = $1 ORDER BY id', [legacyOrder.id]);
+      const first = tickets[0];
+      res.json({
+        orderNumber: legacyOrder.id,
+        status: legacyOrder.status,
+        createdAt: legacyOrder.created_at instanceof Date ? legacyOrder.created_at.toISOString() : legacyOrder.created_at,
+        total: centsToEuros(legacyOrder.total_cents),
+        paymentRef: legacyOrder.payment_ref,
+        event: first ? {
+          id: first.match_id,
+          title: first.competition.includes('Visites') ? first.opponent : `RC Lens – ${first.opponent}`,
+          formattedDate: formatEventDate(`${first.match_date} ${first.kickoff}`),
+          venue: 'Stade Bollaert-Delelis'
+        } : null,
+        buyer: { name: legacyOrder.buyer_name, email: legacyOrder.buyer_email, phone: null },
+        items: tickets.map((ticket) => ({
+          name: `${ticket.stand_name} · ${ticket.sector_name}`,
+          quantity: 1,
+          unitPrice: centsToEuros(ticket.price_cents)
+        })),
+        tickets: tickets.map((ticket) => ({
+          code: ticket.ticket_number,
+          typeName: `${ticket.stand_name} · ${ticket.sector_name}`,
+          beneficiaryName: ticket.beneficiary_name,
+          price: centsToEuros(ticket.price_cents),
+          status: ticket.status,
+          checkedInAt: null
+        }))
+      });
+      return;
+    }
 
     const [event, items, tickets] = await Promise.all([
       order.event_id
@@ -714,6 +889,9 @@ adminRouter.post(
       [req.params.code.trim().toUpperCase()]
     );
     if (!ticket) throw notFound('Billet introuvable.');
+    if (ticket.status === 'pending_payment') {
+      throw conflict('Le paiement de cette commande n’a pas encore été confirmé.', 'PAYMENT_PENDING');
+    }
     if (ticket.status === 'cancelled') {
       throw conflict('Ce billet a été annulé.', 'TICKET_CANCELLED');
     }
@@ -756,6 +934,9 @@ adminRouter.post(
       [req.params.code.trim().toUpperCase()]
     );
     if (!ticket) throw notFound('Billet introuvable.');
+    if (ticket.status !== 'used') {
+      throw conflict('Seul un billet déjà scanné peut être réinitialisé.', 'TICKET_NOT_USED');
+    }
 
     await execute(
       "UPDATE guest_tickets SET status = 'valid', checked_in_at = NULL WHERE id = $1",
@@ -778,10 +959,15 @@ adminRouter.get(
                 COUNT(*) FILTER (WHERE status = 'published')::text AS published
            FROM events`
       ),
-      queryOne<{ total: string }>('SELECT COUNT(*)::text AS total FROM guest_orders'),
-      queryOne<{ total: string }>('SELECT COUNT(*)::text AS total FROM guest_tickets'),
       queryOne<{ total: string }>(
-        'SELECT COALESCE(SUM(total_cents), 0)::text AS total FROM guest_orders'
+        'SELECT ((SELECT COUNT(*) FROM guest_orders) + (SELECT COUNT(*) FROM orders))::text AS total'
+      ),
+      queryOne<{ total: string }>(
+        'SELECT ((SELECT COUNT(*) FROM guest_tickets) + (SELECT COUNT(*) FROM tickets))::text AS total'
+      ),
+      queryOne<{ total: string }>(
+        `SELECT ((SELECT COALESCE(SUM(total_cents), 0) FROM guest_orders WHERE status = 'paid') +
+                 (SELECT COALESCE(SUM(total_cents), 0) FROM orders WHERE status = 'paid'))::text AS total`
       ),
       queryOne<{ total: string }>(
         "SELECT COUNT(*)::text AS total FROM guest_tickets WHERE status = 'used'"

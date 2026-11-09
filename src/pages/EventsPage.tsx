@@ -138,7 +138,6 @@ export default function EventsPage() {
           ticketTypeId: line.type.id,
           quantity: line.quantity
         })),
-        payment: { reference: `SIM-${Date.now()}` }
       });
       setResult(response);
       setStep('success');
@@ -495,7 +494,7 @@ export default function EventsPage() {
                   )}
                 </button>
                 <p className="mt-2 text-center text-[11px] text-slate-400">
-                  Paiement simulé pour cette démonstration. Aucun débit réel.
+                  Le règlement se fera par virement instantané après l’enregistrement de la commande.
                 </p>
               </form>
             </div>
@@ -509,11 +508,10 @@ export default function EventsPage() {
                 <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
               </div>
               <h1 className="mt-4 font-heading text-3xl font-black uppercase text-slate-900 dark:text-white">
-                Commande confirmée
+                Commande enregistrée · virement en attente
               </h1>
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                Merci {result.buyer.name} ! Votre commande a bien été enregistrée.
-                Un e-mail de confirmation a été envoyé à{' '}
+                Merci {result.buyer.name} ! Effectuez le virement instantané avec le montant et le motif indiqués ci-dessous. Vos billets seront activés après réception du paiement. Un récapitulatif a été envoyé à{' '}
                 <strong>{result.buyer.email}</strong>.
               </p>
 
@@ -527,6 +525,20 @@ export default function EventsPage() {
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   Conservez-le précieusement : il permet de vérifier vos billets.
                 </p>
+              </div>
+
+              <div className="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-left dark:border-amber-900 dark:bg-amber-950/30">
+                <h2 className="font-heading text-lg font-black uppercase text-slate-900 dark:text-white">
+                  Virement instantané SEPA
+                </h2>
+                <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+                  <div><dt className="text-xs text-slate-500 dark:text-slate-400">Titulaire</dt><dd className="font-bold text-slate-900 dark:text-white">{result.payment.accountHolder}</dd></div>
+                  <div><dt className="text-xs text-slate-500 dark:text-slate-400">Montant exact</dt><dd className="font-bold text-slate-900 dark:text-white">{formatPrice(result.payment.amount)}</dd></div>
+                  <div className="sm:col-span-2"><dt className="text-xs text-slate-500 dark:text-slate-400">IBAN</dt><dd className="break-all font-mono font-bold text-slate-900 dark:text-white">{result.payment.iban}</dd></div>
+                  <div><dt className="text-xs text-slate-500 dark:text-slate-400">BIC</dt><dd className="font-mono font-bold text-slate-900 dark:text-white">{result.payment.bic}</dd></div>
+                  <div><dt className="text-xs text-slate-500 dark:text-slate-400">Motif obligatoire</dt><dd className="font-mono font-bold text-red-700 dark:text-amber-300">{result.payment.reference}</dd></div>
+                </dl>
+                <p className="mt-3 text-xs text-slate-600 dark:text-slate-300">Indiquez le motif exactement comme affiché afin que votre paiement soit rapproché de la commande.</p>
               </div>
 
               <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 text-left dark:border-slate-700">

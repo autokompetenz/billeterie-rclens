@@ -100,6 +100,14 @@ export interface MailOrder {
   buyerPhone?: string | null;
   totalCents: number;
   createdAt: string | Date;
+  payment: {
+    accountHolder: string;
+    iban: string;
+    bic: string;
+    method: string;
+    reference: string;
+    amount: number;
+  };
   tickets: MailTicket[];
 }
 
@@ -246,6 +254,15 @@ export async function sendOrderEmails(order: MailOrder): Promise<void> {
     ),
     '',
     `Total : ${euros(order.totalCents)}`,
+    'Statut : virement en attente — les billets ne sont pas encore activés.',
+    '',
+    'Paiement par virement instantané SEPA :',
+    `Titulaire : ${order.payment.accountHolder}`,
+    `IBAN : ${order.payment.iban}`,
+    `BIC : ${order.payment.bic}`,
+    `Montant exact : ${euros(order.totalCents)}`,
+    `Motif obligatoire : ${order.payment.reference}`,
+    'Les billets seront validés après réception du virement.',
     '',
     `Vérifiez votre commande à tout moment : ${verifyUrl}`,
     '',
@@ -257,7 +274,7 @@ export async function sendOrderEmails(order: MailOrder): Promise<void> {
   const clientHtml = layout(
     'Confirmation de commande',
     `<p>Bonjour <strong>${escapeHtml(order.buyerName)}</strong>,</p>
-     <p>Merci pour votre commande. Voici le récapitulatif de vos billets.</p>
+     <p>Votre commande est enregistrée. Les billets seront activés après réception du virement.</p>
      <table style="width:100%;border-collapse:collapse;margin:16px 0;background:#faf7ef;border-radius:8px">
        <tr><td style="padding:8px 12px;color:#6b7280">Bon de commande</td><td style="padding:8px 12px;font-weight:bold;font-family:monospace">${escapeHtml(
          order.orderNumber
@@ -284,6 +301,15 @@ export async function sendOrderEmails(order: MailOrder): Promise<void> {
      <p style="font-size:18px;font-weight:bold;text-align:right">Total : ${euros(
        order.totalCents
      )}</p>
+     <div style="margin-top:20px;padding:16px;background:#fff8db;border:1px solid #f2d675;border-radius:8px">
+       <h2 style="margin:0 0 8px;font-size:16px">Paiement par virement instantané SEPA</h2>
+       <p style="margin:4px 0">Titulaire : <strong>${escapeHtml(order.payment.accountHolder)}</strong></p>
+       <p style="margin:4px 0">IBAN : <strong style="font-family:monospace">${escapeHtml(order.payment.iban)}</strong></p>
+       <p style="margin:4px 0">BIC : <strong style="font-family:monospace">${escapeHtml(order.payment.bic)}</strong></p>
+       <p style="margin:4px 0">Montant exact : <strong>${euros(order.totalCents)}</strong></p>
+       <p style="margin:4px 0">Motif obligatoire : <strong style="font-family:monospace">${escapeHtml(order.payment.reference)}</strong></p>
+       <p style="margin:8px 0 0;font-size:12px">Les billets seront validés après réception du virement.</p>
+     </div>
      <p style="margin-top:24px">
        <a href="${verifyUrl}" style="display:inline-block;background:#C8102E;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:bold">Vérifier ma commande</a>
      </p>
@@ -313,6 +339,7 @@ export async function sendOrderEmails(order: MailOrder): Promise<void> {
       order.buyerPhone ? ` · ${order.buyerPhone}` : ''
     }`,
     `Total : ${euros(order.totalCents)}`,
+    `Statut : en attente du virement (${order.payment.reference})`,
     '',
     'Billets :',
     ...order.tickets.map(

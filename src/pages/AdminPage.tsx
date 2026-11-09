@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Euro,
   ExternalLink,
+  Landmark,
   LayoutDashboard,
   Loader2,
   Lock,
@@ -31,7 +32,7 @@ import {
   EventStatus
 } from '../types/ticketing';
 
-type Tab = 'dashboard' | 'events' | 'orders' | 'checkin';
+type Tab = 'dashboard' | 'events' | 'orders' | 'bank' | 'checkin';
 type SessionState = 'loading' | 'locked' | 'unlocked';
 
 interface EventFormState {
@@ -245,6 +246,9 @@ export default function AdminPage() {
     beneficiaryName?: string | null;
     checkedInAt?: string;
   } | null>(null);
+  const [bankSettings, setBankSettings] = useState({ accountHolder: '', iban: '', bic: '' });
+  const [savingBankSettings, setSavingBankSettings] = useState(false);
+  const [bankSettingsSaved, setBankSettingsSaved] = useState(false);
 
   const editingEvent = useMemo(
     () => events.find((event) => event.id === eventForm.id) ?? null,
@@ -265,14 +269,16 @@ export default function AdminPage() {
     setLoadingData(true);
     setDataError(null);
     try {
-      const [nextStats, nextEvents, nextOrders] = await Promise.all([
+      const [nextStats, nextEvents, nextOrders, nextBankSettings] = await Promise.all([
         adminApi.stats(),
         adminApi.listEvents(),
-        adminApi.listOrders()
+        adminApi.listOrders(),
+        adminApi.getBankTransferSettings()
       ]);
       setStats(nextStats);
       setEvents(nextEvents);
       setOrders(nextOrders);
+      setBankSettings(nextBankSettings ?? { accountHolder: '', iban: '', bic: '' });
     } catch (error) {
       setDataError(getErrorMessage(error));
     } finally {
@@ -497,6 +503,33 @@ export default function AdminPage() {
     }
   }
 
+  async function saveBankSettings(event: React.FormEvent) {
+    event.preventDefault();
+    setSavingBankSettings(true);
+    setBankSettingsSaved(false);
+    setDataError(null);
+    try {
+      const saved = await adminApi.saveBankTransferSettings(bankSettings);
+      setBankSettings(saved);
+      setBankSettingsSaved(true);
+    } catch (error) {
+      setDataError(getErrorMessage(error));
+    } finally {
+      setSavingBankSettings(false);
+    }
+  }
+
+  async function confirmBankPayment(orderNumber: string) {
+    if (!window.confirm(`Confirmer la réception du virement pour ${orderNumber} ?`)) return;
+    try {
+      await adminApi.confirmOrderPayment(orderNumber);
+      await loadAll();
+      await openOrder(orderNumber);
+    } catch (error) {
+      setDataError(getErrorMessage(error));
+    }
+  }
+
   async function openOrder(orderNumber: string) {
     setOrderLoading(true);
     setOrderDetail(null);
@@ -614,6 +647,7 @@ export default function AdminPage() {
     { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
     { id: 'events', label: 'Événements', icon: CalendarDays },
     { id: 'orders', label: 'Commandes', icon: ShoppingBag },
+    { id: 'bank', label: 'Coordonnées bancaires', icon: Landmark },
     { id: 'checkin', label: 'Contrôle d’accès', icon: ScanLine }
   ];
 
@@ -815,6 +849,70 @@ export default function AdminPage() {
           </section>
         )}
 
+        {tab === 'bank' && (
+          <section className="mx-auto max-w-2xl">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7">
+              <div className="flex items-center gap-3">
+                <Landmark className="h-6 w-6 text-red-700 dark:text-amber-400" />
+                <div>
+                  <h1 className="font-heading text-2xl font-black uppercase text-slate-900 dark:text-white">
+                    Coordonnées de virement
+                  </h1>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Ces informations seront affichées après la commande et envoyées par e-mail.
+                  </p>
+                </div>
+              </div>
+              <form onSubmit={saveBankSettings} className="mt-6 space-y-4">
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Titulaire du compte</span>
+                  <input
+                    required
+                    value={bankSettings.accountHolder}
+                    onChange={(event) => setBankSettings({ ...bankSettings, accountHolder: event.target.value })}
+                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-600 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                    placeholder="Nom du titulaire"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">IBAN</span>
+                  <input
+                    required
+                    value={bankSettings.iban}
+                    onChange={(event) => setBankSettings({ ...bankSettings, iban: event.target.value.toUpperCase() })}
+                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-sm uppercase text-slate-900 outline-none focus:border-red-600 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                    placeholder="FR76 …"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">BIC</span>
+                  <input
+                    required
+                    value={bankSettings.bic}
+                    onChange={(event) => setBankSettings({ ...bankSettings, bic: event.target.value.toUpperCase() })}
+                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-sm uppercase text-slate-900 outline-none focus:border-red-600 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                    placeholder="ABCDEFGH"
+                  />
+                </label>
+                <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">
+                  Type de paiement proposé au client : <strong>virement instantané SEPA</strong>. Une référence unique sera générée automatiquement pour chaque commande.
+                </div>
+                {bankSettingsSaved && (
+                  <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Coordonnées enregistrées.</p>
+                )}
+                <button
+                  type="submit"
+                  disabled={savingBankSettings}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-red-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-800 disabled:opacity-60"
+                >
+                  {savingBankSettings && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Enregistrer les coordonnées
+                </button>
+              </form>
+            </div>
+          </section>
+        )}
+
         {tab === 'events' && (
           <section>
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -971,6 +1069,7 @@ export default function AdminPage() {
                     <th className="px-3 py-2">Bon de commande</th>
                     <th className="px-3 py-2">Client</th>
                     <th className="px-3 py-2">Événement</th>
+                    <th className="px-3 py-2">Statut</th>
                     <th className="px-3 py-2">Billets</th>
                     <th className="px-3 py-2">Total</th>
                     <th className="px-3 py-2">Date</th>
@@ -997,6 +1096,12 @@ export default function AdminPage() {
                       <td className="px-3 py-2 text-xs text-slate-600 dark:text-slate-300">
                         {order.eventTitle}
                       </td>
+                      <td className="px-3 py-2 text-xs">
+                        <span className={`rounded-full px-2 py-1 font-bold ${order.status === 'paid' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'}`}>
+                          {order.status === 'paid' ? 'Payée' : 'Virement attendu'}
+                        </span>
+                        {order.paymentRef && <div className="mt-1 font-mono text-[10px] text-slate-500">{order.paymentRef}</div>}
+                      </td>
                       <td className="px-3 py-2 text-xs text-slate-600 dark:text-slate-300">
                         {order.checkedInCount}/{order.ticketCount}
                       </td>
@@ -1011,7 +1116,7 @@ export default function AdminPage() {
                   {orders.length === 0 && (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={7}
                         className="px-3 py-8 text-center text-sm text-slate-500"
                       >
                         Aucune commande trouvée.
@@ -1589,6 +1694,26 @@ export default function AdminPage() {
                     </div>
                   </div>
 
+                  <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs dark:border-amber-900 dark:bg-amber-950/30">
+                    <div className="font-bold text-slate-900 dark:text-white">
+                      Paiement : {orderDetail.status === 'paid' ? 'reçu' : 'en attente du virement'}
+                    </div>
+                    {orderDetail.paymentRef && (
+                      <div className="mt-1 text-slate-600 dark:text-slate-300">
+                        Motif de virement : <strong className="font-mono">{orderDetail.paymentRef}</strong>
+                      </div>
+                    )}
+                    {orderDetail.status !== 'paid' && (
+                      <button
+                        type="button"
+                        onClick={() => void confirmBankPayment(orderDetail.orderNumber)}
+                        className="mt-3 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800"
+                      >
+                        Confirmer la réception du virement
+                      </button>
+                    )}
+                  </div>
+
                   <ul className="mt-3 divide-y divide-slate-200 overflow-hidden rounded-lg border border-slate-200 dark:divide-slate-700 dark:border-slate-700">
                     {orderDetail.tickets.map((ticket) => (
                       <li
@@ -1608,10 +1733,12 @@ export default function AdminPage() {
                             className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                               ticket.status === 'valid'
                                 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-                                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                                : ticket.status === 'pending_payment'
+                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                                : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
                             }`}
                           >
-                            {ticket.status === 'valid' ? 'Valide' : 'Scanné'}
+                            {ticket.status === 'valid' ? 'Valide' : ticket.status === 'used' ? 'Scanné' : ticket.status === 'pending_payment' ? 'Paiement attendu' : 'Annulé'}
                           </span>
                           {ticket.status === 'valid' ? (
                             <button
@@ -1621,7 +1748,7 @@ export default function AdminPage() {
                             >
                               Valider
                             </button>
-                          ) : (
+                          ) : ticket.status === 'used' ? (
                             <button
                               type="button"
                               onClick={async () => {
@@ -1636,7 +1763,7 @@ export default function AdminPage() {
                             >
                               Réinitialiser
                             </button>
-                          )}
+                          ) : null}
                         </div>
                       </li>
                     ))}

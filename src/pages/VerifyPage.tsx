@@ -26,6 +26,13 @@ function statusBadge(status: string) {
       icon: CheckCircle2
     };
   }
+  if (status === 'pending_payment') {
+    return {
+      label: 'En attente du virement',
+      className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+      icon: Clock
+    };
+  }
   if (status === 'used') {
     return {
       label: 'Déjà scanné',
@@ -201,8 +208,8 @@ export default function VerifyPage() {
                   {order.orderNumber}
                 </div>
               </div>
-              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-                {order.summary.valid} billet(s) valide(s)
+              <span className={`rounded-full px-3 py-1 text-xs font-bold ${order.status === 'paid' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'}`}>
+                {order.status === 'paid' ? `${order.summary.valid} billet(s) valide(s)` : 'Virement en attente · billets non activés'}
               </span>
             </div>
 

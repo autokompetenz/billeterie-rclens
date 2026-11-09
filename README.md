@@ -164,9 +164,9 @@ Le montant est stocké en **centimes** dans PostgreSQL et converti en euros aux 
 
 1. Le client choisit un événement publié et une catégorie de billet (stock et maximum par commande contrôlés côté serveur).
 2. Il saisit son nom, son e-mail et éventuellement son téléphone.
-3. `POST /api/orders/guest` crée une commande **transactionnelle**, génère un **numéro de bon de commande** unique (`BC-AAAA-XXXXXX`) et un code par billet (`RCL-AAAA-XXXXXX`).
-4. Un e-mail de confirmation part au client ; une notification part à l'admin (`ADMIN_EMAIL`).
-5. Le récapitulatif affiche le bon de commande et permet d'ouvrir la vérification.
+3. `POST /api/orders/guest` crée une commande **en attente de virement**, génère un numéro de bon de commande (`BC-AAAA-XXXXXX`), une référence de virement unique (`RCL-AAAA-XXXXXXXX`) et un code par billet.
+4. Le site et l'e-mail client affichent le titulaire, l'IBAN, le BIC, le montant et le motif de virement. Une notification est envoyée à l'admin (`ADMIN_EMAIL`).
+5. Les billets restent en attente jusqu'à confirmation manuelle du virement dans `/admin`.
 
 ### Vérification — `/verifier`
 
@@ -176,7 +176,7 @@ Le montant est stocké en **centimes** dans PostgreSQL et converti en euros aux 
 
 ### Application historique — `/`
 
-Matchs, plan interactif du stade, pré-réservation, panier, paiement simulé et liste d'attente sont accessibles sans compte. Au paiement, le client renseigne son nom, son e-mail et éventuellement son téléphone. La commande est rattachée à un identifiant invité du navigateur, puis le client et l'adresse d'administration reçoivent un e-mail de confirmation/notification. Le numéro `CMD-RCL-…` permet de vérifier les billets sur `/verifier`.
+Matchs, plan interactif du stade, pré-réservation, panier et liste d'attente sont accessibles sans compte. Au paiement, le client renseigne son nom, son e-mail et éventuellement son téléphone. Une commande en attente est créée et le site/e-mail affichent les coordonnées du compte, le montant et le motif de virement `RCL-…`. Les billets sont activés lorsque l'admin confirme la réception du paiement. Le numéro `CMD-RCL-…` permet de vérifier la commande sur `/verifier`.
 
 Les réservations invitées utilisent l'en-tête `X-Guest-Id` généré et conservé par le navigateur. Pour envoyer les e-mails, configurez `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` et `ADMIN_EMAIL`. Sans configuration SMTP, les messages sont consignés dans les logs et dans `email_log` mais ne sont pas délivrés.
 
@@ -189,6 +189,8 @@ Accessible uniquement via **`/admin`** (aucun lien dans la navigation publique).
 - **Connexion** : code secret `ADMIN_CODE`, cookie `rcl_admin` HttpOnly + `SameSite=Lax` (+ `Secure` en production), valable 12 h. Limitation à 8 tentatives par IP et par fenêtre de 15 minutes.
 - **Tableau de bord** : nombre d'événements, commandes, billets vendus, recette, contrôles d'accès.
 - **Événements** : création, modification, publication/annulation, suppression (refusée si des commandes existent).
+- **Coordonnées bancaires** : titulaire, IBAN et BIC utilisés pour les virements instantanés SEPA.
+- **Commandes** : la référence de virement est affichée ; confirmez la réception du paiement pour activer les billets.
 - **Images** : URL externe ou import d'un fichier local (JPG, PNG, WebP). Le navigateur redimensionne et compresse l'image en JPEG, puis l'API la stocke dans `event_images` et renvoie une URL `/api/images/:id`.
 - **Catégories de billets** : nom, description, prix, stock, maximum par commande, activation/désactivation, suppression (refusée si des ventes existent).
 - **Commandes** : recherche par bon de commande, nom ou e-mail, détail complet et billets.
@@ -313,6 +315,8 @@ Exemple de commande historique :
 | `POST` | `/admin/logout` | Supprime le cookie |
 | `GET` | `/admin/session` | État de la session |
 | `GET` | `/admin/stats` | Indicateurs globaux |
+| `GET` | `/admin/bank-transfer` | Coordonnées de virement configurées |
+| `PUT` | `/admin/bank-transfer` | Enregistre titulaire, IBAN et BIC |
 | `GET` | `/admin/events` | Tous les événements (brouillons inclus) |
 | `POST` | `/admin/events` | Crée un événement |
 | `POST` | `/admin/images` | `{ dataUrl }` → stocke une image (`{ id, url }`) |
@@ -323,6 +327,7 @@ Exemple de commande historique :
 | `DELETE` | `/admin/ticket-types/:id` | Supprime une catégorie sans vente |
 | `GET` | `/admin/orders?search=&eventId=` | Liste/recherche des commandes |
 | `GET` | `/admin/orders/:orderNumber` | Détail d'une commande |
+| `POST` | `/admin/orders/:orderNumber/confirm-payment` | Confirme le virement et active les billets |
 | `GET` | `/admin/tickets/:code` | Recherche d'un billet |
 | `POST` | `/admin/tickets/:code/check-in` | Valide un billet (une seule fois) |
 | `POST` | `/admin/tickets/:code/reset-check-in` | Réinitialise un contrôle |

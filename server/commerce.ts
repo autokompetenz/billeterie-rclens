@@ -26,6 +26,11 @@ import {
 } from './http.ts';
 import { ADDON_PRICES, PROMO_CODES } from './seed-data.ts';
 import { sendOrderEmails } from './mailer.ts';
+import {
+  createPaymentReference,
+  getBankAccountSettings,
+  paymentInstructions
+} from './payment.ts';
 
 export const commerceRouter = Router();
 
@@ -366,6 +371,8 @@ commerceRouter.post(
     );
     const buyerEmail = requireEmail(body?.payment?.email);
     const buyerPhone = optionalString(body?.payment?.phone, 40);
+    const bankAccount = await getBankAccountSettings();
+    const paymentReference = await createPaymentReference();
     const promoInput = optionalString(body?.promoCode, 32);
     const promoCode = promoInput ? promoInput.toUpperCase() : undefined;
 
@@ -542,8 +549,8 @@ commerceRouter.post(
         `INSERT INTO orders (
            id, user_id, buyer_name, buyer_email, tickets_total_cents,
            addons_total_cents, discount_cents, total_cents, promo_code,
-           addons_json, status, created_at
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'paid',$11)`,
+           payment_ref, addons_json, status, created_at
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending_payment',$12)`,
         [
           orderId,
           userId,
@@ -554,6 +561,7 @@ commerceRouter.post(
           discountCents,
           totalCents,
           promoCode ?? null,
+          paymentReference,
           JSON.stringify(addons),
           createdAt
         ]
@@ -592,7 +600,7 @@ commerceRouter.post(
           price_cents: draft.priceCents,
           qr_code_data: `${baseUrl}/verify/${ticketNumber}`,
           barcode,
-          status: 'valid'
+          status: 'pending_payment'
         };
 
         await tx.execute(
@@ -601,7 +609,7 @@ commerceRouter.post(
              match_date, kickoff, competition, stand_name, sector_name, row_num,
              seat_num, gate, beneficiary_name, tariff, price_cents, qr_code_data,
              barcode, status
-           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,'valid')`,
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,'pending_payment')`,
           [
             row.id,
             row.order_id,
@@ -659,6 +667,11 @@ commerceRouter.post(
 
     const firstTicket = result.tickets[0];
     if (firstTicket) {
+      const transfer = paymentInstructions(
+        bankAccount,
+        paymentReference,
+        Math.round(result.total * 100)
+      );
       await sendOrderEmails({
         orderNumber: result.orderId,
         eventTitle: firstTicket.competition.includes('Visites')
@@ -671,6 +684,7 @@ commerceRouter.post(
         buyerPhone,
         totalCents: Math.round(result.total * 100),
         createdAt: new Date().toISOString(),
+        payment: transfer,
         tickets: result.tickets.map((ticket) => ({
           code: ticket.ticketNumber,
           typeName: `${ticket.standName} · ${ticket.sectorName}`,
@@ -679,7 +693,11 @@ commerceRouter.post(
         }))
       });
     }
-    res.status(201).json(result);
+    res.status(201).json({
+      ...result,
+      status: 'pending_payment',
+      payment: paymentInstructions(bankAccount, paymentReference, Math.round(result.total * 100))
+    });
   })
 );
 
