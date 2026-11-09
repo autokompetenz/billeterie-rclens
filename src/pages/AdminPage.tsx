@@ -16,6 +16,7 @@ import {
   ShoppingBag,
   Ticket,
   Trash2,
+  Upload,
   Users,
   X,
   Power
@@ -117,6 +118,96 @@ function statusClass(status: string): string {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* Import d'images locales                                             */
+/* ------------------------------------------------------------------ */
+
+const MAX_IMAGE_SOURCE_BYTES = 12 * 1024 * 1024;
+const MAX_IMAGE_DATA_URL_LENGTH = 3_000_000;
+const ACCEPTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+function loadImageFile(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new window.Image();
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Impossible de lire cette image.'));
+    };
+    image.src = objectUrl;
+  });
+}
+
+function renderImageDataUrl(
+  image: HTMLImageElement,
+  maxWidth: number,
+  maxHeight: number,
+  quality: number
+): string {
+  const scale = Math.min(
+    1,
+    maxWidth / image.naturalWidth,
+    maxHeight / image.naturalHeight
+  );
+  const width = Math.max(1, Math.round(image.naturalWidth * scale));
+  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) {
+    throw new Error('Impossible de préparer l’image.');
+  }
+
+  // Fond blanc : évite un fond noir pour les PNG transparents convertis en JPEG.
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, width, height);
+  context.drawImage(image, 0, 0, width, height);
+
+  return canvas.toDataURL('image/jpeg', quality);
+}
+
+/**
+ * Redimensionne et compresse une image locale avant de l'envoyer à l'API.
+ * Le résultat reste sous la limite de corps de requête de Vercel.
+ */
+async function fileToOptimizedDataUrl(file: File): Promise<string> {
+  if (!ACCEPTED_IMAGE_TYPES.has(file.type)) {
+    throw new Error('Sélectionnez une image JPG, PNG ou WebP.');
+  }
+  if (file.size > MAX_IMAGE_SOURCE_BYTES) {
+    throw new Error('Image trop lourde : 12 Mo maximum avant compression.');
+  }
+
+  const image = await loadImageFile(file);
+  const attempts = [
+    { maxWidth: 1600, maxHeight: 900, quality: 0.82 },
+    { maxWidth: 1280, maxHeight: 720, quality: 0.72 },
+    { maxWidth: 1024, maxHeight: 576, quality: 0.6 }
+  ];
+
+  for (const attempt of attempts) {
+    const dataUrl = renderImageDataUrl(
+      image,
+      attempt.maxWidth,
+      attempt.maxHeight,
+      attempt.quality
+    );
+    if (dataUrl.length <= MAX_IMAGE_DATA_URL_LENGTH) {
+      return dataUrl;
+    }
+  }
+
+  throw new Error(
+    'Image trop lourde après compression. Choisissez une image plus petite ou utilisez une URL.'
+  );
+}
+
 export default function AdminPage() {
   const [session, setSession] = useState<SessionState>('loading');
   const [code, setCode] = useState('');
@@ -134,6 +225,7 @@ export default function AdminPage() {
   const [eventForm, setEventForm] = useState<EventFormState>(EMPTY_EVENT);
   const [savingEvent, setSavingEvent] = useState(false);
   const [editorError, setEditorError] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
   const [typeForm, setTypeForm] = useState<TicketTypeFormState>(EMPTY_TYPE);
   const [savingType, setSavingType] = useState(false);
   const [typeError, setTypeError] = useState<string | null>(null);
@@ -263,6 +355,25 @@ export default function AdminPage() {
     setEditorError(null);
     setTypeError(null);
     setEditorOpen(true);
+  }
+
+  async function handleImageFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    // Permet de sélectionner deux fois de suite le même fichier.
+    event.target.value = '';
+    if (!file) return;
+
+    setImageUploading(true);
+    setEditorError(null);
+    try {
+      const dataUrl = await fileToOptimizedDataUrl(file);
+      const uploaded = await adminApi.uploadEventImage(dataUrl);
+      setEventForm((current) => ({ ...current, imageUrl: uploaded.url }));
+    } catch (error) {
+      setEditorError(getErrorMessage(error));
+    } finally {
+      setImageUploading(false);
+    }
   }
 
   async function saveEvent(event: React.FormEvent) {
@@ -1110,19 +1221,65 @@ export default function AdminPage() {
                     className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-600 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                   />
                 </label>
-                <label className="block">
+                <div className="block">
                   <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                    Image (URL)
+                    Image de l’événement
                   </span>
-                  <input
-                    value={eventForm.imageUrl}
-                    onChange={(event) =>
-                      setEventForm({ ...eventForm, imageUrl: event.target.value })
-                    }
-                    placeholder="/images/… ou https://…"
-                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-600 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                  />
-                </label>
+                  <div className="mt-1 space-y-2">
+                    <input
+                      value={eventForm.imageUrl}
+                      onChange={(event) =>
+                        setEventForm({ ...eventForm, imageUrl: event.target.value })
+                      }
+                      placeholder="URL de l’image (/images/… ou https://…)"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-600 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                    />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label
+                        className={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 ${
+                          imageUploading ? 'cursor-wait opacity-60' : ''
+                        }`}
+                      >
+                        {imageUploading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4" />
+                        )}
+                        {imageUploading ? 'Import en cours…' : 'Importer une image'}
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="hidden"
+                          disabled={imageUploading}
+                          onChange={handleImageFile}
+                        />
+                      </label>
+                      {eventForm.imageUrl && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEventForm({ ...eventForm, imageUrl: '' })
+                          }
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Retirer
+                        </button>
+                      )}
+                    </div>
+                    {eventForm.imageUrl && (
+                      <img
+                        src={eventForm.imageUrl}
+                        alt="Aperçu de l’événement"
+                        className="h-32 w-full rounded-lg border border-slate-200 object-cover dark:border-slate-700"
+                      />
+                    )}
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Importez un fichier depuis votre ordinateur (JPG, PNG, WebP)
+                      ou collez une URL. L’image est automatiquement redimensionnée.
+                    </p>
+                  </div>
+                </div>
                 <label className="block">
                   <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                     Description

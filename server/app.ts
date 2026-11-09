@@ -31,7 +31,7 @@ export function createApp() {
   /* Middlewares globaux                                                 */
   /* ------------------------------------------------------------------ */
 
-  app.use(express.json({ limit: '1mb' }));
+  app.use(express.json({ limit: '4mb' }));
 
   app.use((_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');

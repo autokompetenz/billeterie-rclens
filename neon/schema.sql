@@ -226,6 +226,15 @@ CREATE TABLE IF NOT EXISTS events (
 );
 CREATE INDEX IF NOT EXISTS idx_events_status ON events(status, event_date);
 
+-- Images importées depuis l'administration, stockées en base et servies par
+-- /api/images/:id (évite les data-URL volumineuses dans events.image_url).
+CREATE TABLE IF NOT EXISTS event_images (
+  id          TEXT PRIMARY KEY,
+  mime_type   TEXT NOT NULL,
+  data        BYTEA NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS event_ticket_types (
   id            TEXT PRIMARY KEY,
   event_id      TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,

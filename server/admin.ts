@@ -44,6 +44,37 @@ import {
 export const adminRouter = Router();
 
 /* ------------------------------------------------------------------ */
+/* Images d'événements                                                 */
+/* ------------------------------------------------------------------ */
+
+const IMAGE_DATA_URL_PATTERN =
+  /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=\s]+)$/;
+const MAX_IMAGE_BYTES = 2_500_000;
+
+/** Vérifie la signature binaire pour éviter un fichier déguisé en image. */
+function hasValidImageSignature(data: Buffer, mimeType: string): boolean {
+  if (mimeType === 'image/jpeg') {
+    return data.length > 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff;
+  }
+  if (mimeType === 'image/png') {
+    return (
+      data.length > 8 &&
+      data
+        .subarray(0, 8)
+        .equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+    );
+  }
+  if (mimeType === 'image/webp') {
+    return (
+      data.length > 12 &&
+      data.toString('ascii', 0, 4) === 'RIFF' &&
+      data.toString('ascii', 8, 12) === 'WEBP'
+    );
+  }
+  return false;
+}
+
+/* ------------------------------------------------------------------ */
 /* Connexion / session                                                 */
 /* ------------------------------------------------------------------ */
 
@@ -98,6 +129,46 @@ adminRouter.get(
 
 /* Toutes les routes suivantes exigent le cookie admin. */
 adminRouter.use('/admin', requireAdmin);
+
+adminRouter.post(
+  '/admin/images',
+  asyncHandler(async (req, res) => {
+    const dataUrl = requireString(req.body?.dataUrl, 'image', {
+      min: 30,
+      max: 3_500_000
+    });
+    const match = IMAGE_DATA_URL_PATTERN.exec(dataUrl);
+    if (!match) {
+      throw badRequest(
+        'Format d’image invalide. Utilisez un fichier JPG, PNG ou WebP.',
+        'INVALID_IMAGE'
+      );
+    }
+
+    const mimeType = match[1];
+    const data = Buffer.from(match[2], 'base64');
+    if (!data.length) {
+      throw badRequest('L’image est vide.', 'INVALID_IMAGE');
+    }
+    if (data.length > MAX_IMAGE_BYTES) {
+      throw badRequest('Image trop lourde (2,5 Mo maximum).', 'IMAGE_TOO_LARGE');
+    }
+    if (!hasValidImageSignature(data, mimeType)) {
+      throw badRequest(
+        'Le fichier ne correspond pas à une image valide.',
+        'INVALID_IMAGE'
+      );
+    }
+
+    const id = newId('img');
+    await execute(
+      'INSERT INTO event_images (id, mime_type, data) VALUES ($1, $2, $3)',
+      [id, mimeType, data]
+    );
+
+    res.status(201).json({ id, url: `/api/images/${id}` });
+  })
+);
 
 /* ------------------------------------------------------------------ */
 /* Événements                                                          */

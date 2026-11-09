@@ -441,6 +441,13 @@ export const adminApi = {
     return request('/admin/session');
   },
 
+  uploadEventImage(dataUrl: string): Promise<{ id: string; url: string }> {
+    return request('/admin/images', {
+      method: 'POST',
+      body: { dataUrl }
+    });
+  },
+
   stats(): Promise<AdminStats> {
     return request<AdminStats>('/admin/stats');
   },

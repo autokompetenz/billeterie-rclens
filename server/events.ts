@@ -20,6 +20,23 @@ export const eventsRouter = Router();
 
 const MAX_TICKETS_PER_ORDER = 10;
 
+/* Images importées depuis l'administration, servies avec un cache long. */
+eventsRouter.get(
+  '/images/:id',
+  asyncHandler(async (req, res) => {
+    const id = requireString(req.params.id, 'image', { max: 80 });
+    const image = await queryOne<{ mime_type: string; data: Buffer }>(
+      'SELECT mime_type, data FROM event_images WHERE id = $1',
+      [id]
+    );
+    if (!image) {
+      throw notFound('Image introuvable.');
+    }
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.type(image.mime_type).send(image.data);
+  })
+);
+
 export interface EventRow {
   id: string;
   slug: string;
