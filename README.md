@@ -472,6 +472,7 @@ APP_URL="https://votre-domaine.fr"
 ```
 
 3. Sans `SMTP_USER`/`SMTP_PASS`, les e-mails sont **écrits dans les logs** et journalisés avec le statut `skipped` dans `email_log` : la commande aboutit quand même.
+4. L'envoi est **non bloquant** : la réponse de création de commande est renvoyée au plus tard après `MAIL_SEND_MAX_WAIT_MS` (2,5 s par défaut), même si le serveur SMTP est injoignable. Les délais de connexion SMTP sont limités par `SMTP_TIMEOUT_MS` (5 s par défaut). Cela évite que le client reste sur l'écran « Enregistrement de votre commande... » sans fin.
 
 Chaque commande génère deux messages :
 

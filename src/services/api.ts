@@ -152,6 +152,21 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     headers.Authorization = `Bearer ${token}`;
   }
 
+  // Une requête qui reste pendante (serverless lent, SMTP bloqué, coupure
+  // réseau) ne doit jamais laisser le client sur un spinner infini.
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeoutMs = Number(import.meta.env.VITE_API_TIMEOUT_MS || 20000);
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+
+  if (options.signal) {
+    if (options.signal.aborted) controller.abort();
+    else options.signal.addEventListener('abort', () => controller.abort(), { once: true });
+  }
+
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
@@ -159,15 +174,26 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       headers,
       credentials: 'include',
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
-      signal: options.signal
+      signal: controller.signal
     });
   } catch (error) {
-    if ((error as Error)?.name === 'AbortError') throw error;
+    if ((error as Error)?.name === 'AbortError') {
+      if (timedOut) {
+        throw new ApiError(
+          0,
+          'Le serveur met trop de temps à répondre. Vérifiez « Mes commandes » avant de réessayer afin d’éviter un doublon.',
+          'TIMEOUT'
+        );
+      }
+      throw error;
+    }
     throw new ApiError(
       0,
       "Impossible de joindre le serveur de billetterie. Vérifiez que l'API est démarrée.",
       'NETWORK_ERROR'
     );
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   if (response.status === 204) {

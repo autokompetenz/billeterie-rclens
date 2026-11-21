@@ -25,7 +25,7 @@ import {
   asyncHandler
 } from './http.ts';
 import { ADDON_PRICES, PROMO_CODES } from './seed-data.ts';
-import { sendOrderEmails } from './mailer.ts';
+import { notifyOrderEmails } from './mailer.ts';
 import {
   createPaymentReference,
   createTransferToken,
@@ -676,7 +676,7 @@ commerceRouter.post(
         paymentReference,
         Math.round(result.total * 100)
       );
-      await sendOrderEmails({
+      await notifyOrderEmails({
         orderNumber: result.orderId,
         eventTitle: firstTicket.competition.includes('Visites')
           ? firstTicket.opponent

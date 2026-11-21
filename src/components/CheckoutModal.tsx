@@ -103,12 +103,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         appliedPromoCode ?? undefined
       );
 
-      if (res.success) {
-        setTimeout(() => {
-          onOrderSuccess(res.orderId, res.tickets, res.payment, res.transferToken);
-          onClose();
-        }, 800);
+      if (!res.success) {
+        throw new Error("La commande n'a pas pu être enregistrée. Merci de réessayer.");
       }
+      // Affichage de la confirmation dès que la commande est enregistrée.
+      setTimeout(() => {
+        onOrderSuccess(res.orderId, res.tickets, res.payment, res.transferToken);
+        onClose();
+      }, 800);
     } catch (err) {
       setError(getErrorMessage(err));
       setStep('payment');

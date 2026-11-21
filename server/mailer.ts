@@ -32,6 +32,11 @@ function getTransporter(): Transporter | null {
     host: process.env.SMTP_HOST || 'smtp.hostinger.com',
     port,
     secure,
+    // Sans ces délais, une panne SMTP bloque la réponse de l'API pendant
+    // plusieurs minutes (défaut nodemailer) et le client reste sur son spinner.
+    connectionTimeout: Number(process.env.SMTP_TIMEOUT_MS || 5000),
+    greetingTimeout: Number(process.env.SMTP_TIMEOUT_MS || 5000),
+    socketTimeout: Number(process.env.SMTP_TIMEOUT_MS || 5000),
     auth: {
       user: process.env.SMTP_USER!,
       pass: process.env.SMTP_PASS!
@@ -402,4 +407,31 @@ export async function sendOrderEmails(order: MailOrder): Promise<void> {
   );
 
   await sendMail(admin, adminSubject, adminHtml, adminText, 'admin_order', order.orderNumber);
+}
+
+/**
+ * Envoi des e-mails de commande sans jamais bloquer la réponse de l'API.
+ *
+ * Un serveur SMTP lent ou injoignable (cas rencontré en production) ne doit
+ * pas empêcher le client d'obtenir sa confirmation de commande. On attend au
+ * maximum quelques secondes, puis on répond de toute façon ; l'envoi se
+ * poursuit en tâche de fond lorsque la plateforme le permet.
+ */
+export async function notifyOrderEmails(order: MailOrder): Promise<void> {
+  const maxWaitMs = Number(process.env.MAIL_SEND_MAX_WAIT_MS || 2500);
+  let timer: NodeJS.Timeout | undefined;
+  const deadline = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, maxWaitMs);
+  });
+
+  try {
+    await Promise.race([
+      sendOrderEmails(order).catch((error) => {
+        console.error('[mail] Échec de l’envoi des e-mails de commande :', error);
+      }),
+      deadline
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }

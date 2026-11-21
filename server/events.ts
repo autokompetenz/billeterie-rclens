@@ -9,7 +9,7 @@ import {
   withTransaction
 } from './db.ts';
 import { asyncHandler, badRequest, conflict, notFound, optionalString, requireEmail, requireString } from './http.ts';
-import { sendOrderEmails, type MailOrder } from './mailer.ts';
+import { notifyOrderEmails, type MailOrder } from './mailer.ts';
 import {
   createPaymentReference,
   createTransferToken,
@@ -536,8 +536,8 @@ eventsRouter.post(
       }))
     };
 
-    // Les e-mails ne doivent jamais faire échouer une commande payée.
-    await sendOrderEmails(mailOrder);
+    // Les e-mails ne doivent jamais bloquer la confirmation envoyée au client.
+    await notifyOrderEmails(mailOrder);
 
     res.status(201).json({
       success: true,
