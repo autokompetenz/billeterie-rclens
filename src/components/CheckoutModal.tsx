@@ -8,7 +8,12 @@ interface CheckoutModalProps {
   onClose: () => void;
   cart: CartItem[];
   addons: OrderAddons;
-  onOrderSuccess: (orderId: string, tickets: ETicket[], payment: BankTransferDetails) => void;
+  onOrderSuccess: (
+    orderId: string,
+    tickets: ETicket[],
+    payment: BankTransferDetails,
+    transferToken?: string
+  ) => void;
   buyerName?: string;
   buyerEmail?: string;
 }
@@ -100,7 +105,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
       if (res.success) {
         setTimeout(() => {
-          onOrderSuccess(res.orderId, res.tickets, res.payment);
+          onOrderSuccess(res.orderId, res.tickets, res.payment, res.transferToken);
           onClose();
         }, 800);
       }

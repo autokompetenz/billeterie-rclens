@@ -45,6 +45,11 @@ import { validateBankAccount } from './payment.ts';
 
 export const adminRouter = Router();
 
+function isoOrNull(value: string | Date | null | undefined): string | null {
+  if (!value) return null;
+  return value instanceof Date ? value.toISOString() : value;
+}
+
 /* ------------------------------------------------------------------ */
 /* Images d'événements                                                 */
 /* ------------------------------------------------------------------ */
@@ -693,6 +698,7 @@ adminRouter.get(
         display_event_date: Date | string | null;
         ticket_count: string;
         checked_in_count: string;
+        transfer_declared_at: string | Date | null;
       }
     >(
       `SELECT o.*, COALESCE(e.title, o.event_title) AS display_event_title,
@@ -724,13 +730,14 @@ adminRouter.get(
       total_cents: number;
       status: string;
       payment_ref: string | null;
+      transfer_declared_at: string | Date | null;
       created_at: Date | string;
       event_title: string | null;
       ticket_count: string;
       checked_in_count: string;
     }>(
       `SELECT o.id, o.buyer_name, o.buyer_email, o.total_cents, o.status,
-              o.payment_ref, o.created_at, MIN(t.opponent) AS event_title,
+              o.payment_ref, o.transfer_declared_at, o.created_at, MIN(t.opponent) AS event_title,
               COUNT(t.id)::text AS ticket_count,
               COUNT(t.id) FILTER (WHERE t.status = 'used')::text AS checked_in_count
          FROM orders o LEFT JOIN tickets t ON t.order_id = o.id
@@ -748,6 +755,8 @@ adminRouter.get(
         buyerEmail: row.buyer_email,
         buyerPhone: row.buyer_phone,
         paymentRef: row.payment_ref,
+        transferDeclared: Boolean(row.transfer_declared_at),
+        transferDeclaredAt: isoOrNull(row.transfer_declared_at),
         total: centsToEuros(row.total_cents),
         status: row.status,
         createdAt:
@@ -764,6 +773,8 @@ adminRouter.get(
       buyerEmail: row.buyer_email,
       buyerPhone: null,
       paymentRef: row.payment_ref,
+      transferDeclared: Boolean(row.transfer_declared_at),
+      transferDeclaredAt: isoOrNull(row.transfer_declared_at),
       total: centsToEuros(row.total_cents),
       status: row.status,
       createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
@@ -793,6 +804,7 @@ adminRouter.get(
         total_cents: number;
         status: string;
         payment_ref: string | null;
+        transfer_declared_at: string | Date | null;
         created_at: Date | string;
       }>('SELECT * FROM orders WHERE UPPER(id) = $1', [req.params.orderNumber.trim().toUpperCase()]);
       if (!legacyOrder) throw notFound('Commande introuvable.');
@@ -816,6 +828,8 @@ adminRouter.get(
         createdAt: legacyOrder.created_at instanceof Date ? legacyOrder.created_at.toISOString() : legacyOrder.created_at,
         total: centsToEuros(legacyOrder.total_cents),
         paymentRef: legacyOrder.payment_ref,
+        transferDeclared: Boolean(legacyOrder.transfer_declared_at),
+        transferDeclaredAt: isoOrNull(legacyOrder.transfer_declared_at),
         event: first ? {
           id: first.match_id,
           title: first.competition.includes('Visites') ? first.opponent : `RC Lens – ${first.opponent}`,
@@ -872,6 +886,8 @@ adminRouter.get(
         order.created_at instanceof Date ? order.created_at.toISOString() : order.created_at,
       total: centsToEuros(order.total_cents),
       paymentRef: order.payment_ref,
+      transferDeclared: Boolean(order.transfer_declared_at),
+      transferDeclaredAt: isoOrNull(order.transfer_declared_at),
       event: historicalEvent
         ? {
             id: historicalEvent.id,

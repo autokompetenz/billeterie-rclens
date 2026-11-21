@@ -12,6 +12,7 @@ import { asyncHandler, badRequest, conflict, notFound, optionalString, requireEm
 import { sendOrderEmails, type MailOrder } from './mailer.ts';
 import {
   createPaymentReference,
+  createTransferToken,
   getBankAccountSettings,
   paymentInstructions
 } from './payment.ts';
@@ -93,6 +94,8 @@ export interface GuestOrderRow {
   total_cents: number;
   status: string;
   payment_ref: string | null;
+  transfer_declared_at: string | Date | null;
+  transfer_token_hash: string | null;
   created_at: Date | string;
 }
 
@@ -331,6 +334,7 @@ eventsRouter.post(
     const paymentReference = await createPaymentReference();
     const orderId = newId('gord');
     const createdAt = isoNow();
+    const transfer = createTransferToken();
 
     const result = await withTransaction(async (tx) => {
       const event = await tx.queryOne<EventRow>(
@@ -420,8 +424,8 @@ eventsRouter.post(
         `INSERT INTO guest_orders (
            id, order_number, event_id, event_snapshot_id, event_title, event_date,
            event_venue, buyer_name, buyer_email, buyer_phone, total_cents,
-           status, payment_ref, created_at
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending_payment',$12,$13)`,
+           status, payment_ref, created_at, transfer_token_hash
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending_payment',$12,$13,$14)`,
         [
           orderId,
           orderNumber,
@@ -435,7 +439,8 @@ eventsRouter.post(
           buyerPhone ?? null,
           totalCents,
           paymentReference,
-          createdAt
+          createdAt,
+          transfer.hash
         ]
       );
 
@@ -508,7 +513,7 @@ eventsRouter.post(
         }
       }
 
-      return { event, createdTickets, totalCents };
+      return { event, createdTickets, totalCents, transferToken: transfer.token };
     });
 
     const mailOrder: MailOrder = {
@@ -522,6 +527,7 @@ eventsRouter.post(
       totalCents: result.totalCents,
       createdAt,
       payment: paymentInstructions(bankAccount, paymentReference, result.totalCents),
+      transferDeclarationToken: result.transferToken,
       tickets: result.createdTickets.map((ticket) => ({
         code: ticket.ticket_code,
         typeName: ticket.ticket_type_name,
@@ -552,6 +558,7 @@ eventsRouter.post(
         beneficiaryName: ticket.beneficiary_name,
         price: centsToEuros(ticket.price_cents)
       })),
+      transferDeclarationToken: result.transferToken,
       verificationUrl: `/verifier?commande=${encodeURIComponent(orderNumber)}`
     });
   })
@@ -578,8 +585,9 @@ eventsRouter.get(
         buyer_email: string;
         total_cents: number;
         status: string;
+        transfer_declared_at: string | Date | null;
         created_at: string | Date;
-      }>('SELECT id, buyer_name, buyer_email, total_cents, status, created_at FROM orders WHERE UPPER(id) = $1', [
+      }>('SELECT id, buyer_name, buyer_email, total_cents, status, transfer_declared_at, created_at FROM orders WHERE UPPER(id) = $1', [
         req.params.orderNumber.trim().toUpperCase()
       ]);
       if (legacyOrder) {
@@ -606,6 +614,7 @@ eventsRouter.get(
           found: true,
           orderNumber: legacyOrder.id,
           status: legacyOrder.status,
+          transferDeclared: Boolean(legacyOrder.transfer_declared_at),
           createdAt: legacyOrder.created_at instanceof Date
             ? legacyOrder.created_at.toISOString()
             : new Date(legacyOrder.created_at).toISOString(),
@@ -676,6 +685,7 @@ eventsRouter.get(
       found: true,
       orderNumber: order.order_number,
       status: order.status,
+      transferDeclared: Boolean(order.transfer_declared_at),
       createdAt:
         order.created_at instanceof Date
           ? order.created_at.toISOString()

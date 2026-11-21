@@ -16,6 +16,8 @@ import {
   Sector,
   TicketingEvent,
   TourPackage,
+  TransferDeclarationInfo,
+  TransferDeclarationResult,
   VerifiedOrder,
   VerifiedTicket
 } from '../types/ticketing';
@@ -250,6 +252,8 @@ export interface CreateOrderResult {
   orderId: string;
   status: string;
   payment: BankTransferDetails;
+  /** Jeton privé du lien « j'ai effectué le virement ». */
+  transferToken?: string;
   tickets: ETicket[];
   total: number;
   discount: number;
@@ -591,6 +595,26 @@ export const adminApi = {
       `/admin/tickets/${encodeURIComponent(code.trim())}/reset-check-in`,
       { method: 'POST' }
     );
+  }
+};
+
+/* ------------------------------------------------------------------ */
+/* Déclaration de virement (lien privé envoyé par e-mail)               */
+/* ------------------------------------------------------------------ */
+
+export const transferApi = {
+  info(token: string): Promise<TransferDeclarationInfo> {
+    return request<TransferDeclarationInfo>('/transfer-declaration/info', {
+      method: 'POST',
+      body: { token }
+    });
+  },
+
+  declare(token: string): Promise<TransferDeclarationResult> {
+    return request<TransferDeclarationResult>('/transfer-declaration/declare', {
+      method: 'POST',
+      body: { token }
+    });
   }
 };
 

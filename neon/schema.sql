@@ -310,10 +310,36 @@ CREATE TABLE IF NOT EXISTS email_log (
 );
 CREATE INDEX IF NOT EXISTS idx_email_log_order ON email_log(order_id);
 
+-- ---------------------------------------------------------------------------
+-- Virement & déclaration client (ajouts idempotents, appliqués aussi au
+-- démarrage de l'application dans server/db.ts)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS bank_transfer_settings (
+  id             TEXT PRIMARY KEY CHECK (id = 'default'),
+  account_holder TEXT NOT NULL,
+  iban           TEXT NOT NULL,
+  bic            TEXT NOT NULL,
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_ref TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_payment_ref
+  ON orders(payment_ref) WHERE payment_ref IS NOT NULL;
+
+-- Jeton privé envoyé par e-mail : seule l'empreinte SHA-256 est stockée.
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS transfer_declared_at TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS transfer_token_hash TEXT;
+ALTER TABLE guest_orders ADD COLUMN IF NOT EXISTS transfer_declared_at TEXT;
+ALTER TABLE guest_orders ADD COLUMN IF NOT EXISTS transfer_token_hash TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_transfer_token
+  ON orders(transfer_token_hash) WHERE transfer_token_hash IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_guest_orders_transfer_token
+  ON guest_orders(transfer_token_hash) WHERE transfer_token_hash IS NOT NULL;
+
 COMMIT;
 
 -- ===========================================================================
--- Fin du schéma — 19 tables.
+-- Fin du schéma — 20 tables.
 -- Vérification rapide :
 --   SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY 1;
 -- ===========================================================================

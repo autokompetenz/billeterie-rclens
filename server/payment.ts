@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { badRequest, notFound, requireString } from './http.ts';
 import { queryOne } from './db.ts';
 
@@ -68,6 +68,20 @@ export async function createPaymentReference(): Promise<string> {
     if (!legacy && !events) return reference;
   }
   throw new Error('Impossible de générer une référence de virement unique.');
+}
+
+/**
+ * Jeton privé permettant au client de déclarer son virement après la commande.
+ * Seule l'empreinte SHA-256 est stockée en base : le jeton en clair n'existe
+ * que dans l'e-mail et dans la réponse de création de commande.
+ */
+export function createTransferToken(): { token: string; hash: string } {
+  const token = randomBytes(24).toString('base64url');
+  return { token, hash: hashTransferToken(token) };
+}
+
+export function hashTransferToken(token: string): string {
+  return createHash('sha256').update(token.trim()).digest('hex');
 }
 
 export function paymentInstructions(

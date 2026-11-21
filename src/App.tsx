@@ -99,6 +99,7 @@ export default function App() {
     orderId: string;
     ticketsCount: number;
     payment: BankTransferDetails;
+    transferToken?: string;
   } | null>(null);
 
   // Theme Management (Fond Blanc / Fond Noir) - Stored in localStorage
@@ -322,7 +323,12 @@ export default function App() {
   };
 
   // Commande confirmée : les e-billets proviennent directement du serveur
-  const handleOrderSuccess = (orderId: string, newTickets: ETicket[], payment: BankTransferDetails) => {
+  const handleOrderSuccess = (
+    orderId: string,
+    newTickets: ETicket[],
+    payment: BankTransferDetails,
+    transferToken?: string
+  ) => {
     setCart([]);
     setHoldId(null);
     setHoldExpiresAt(null);
@@ -330,7 +336,7 @@ export default function App() {
     setIsCartOpen(false);
     setIsSeatPickerOpen(false);
     setSelectedSector(null);
-    setOrderConfirmation({ orderId, ticketsCount: newTickets.length, payment });
+    setOrderConfirmation({ orderId, ticketsCount: newTickets.length, payment, transferToken });
     setActiveTab('matches');
     refreshCatalog();
   };
@@ -617,6 +623,14 @@ export default function App() {
               <div><span className="text-xs text-slate-500 dark:text-slate-400">BIC</span><div className="font-mono font-bold">{orderConfirmation.payment.bic}</div></div>
               <div><span className="text-xs text-slate-500 dark:text-slate-400">Motif obligatoire</span><div className="font-mono font-bold text-red-700 dark:text-amber-300">{orderConfirmation.payment.reference}</div></div>
             </div>
+            {orderConfirmation.transferToken && (
+              <a
+                href={`/declarer-virement?jeton=${encodeURIComponent(orderConfirmation.transferToken)}`}
+                className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-500"
+              >
+                <CheckCircle2 className="h-4 w-4" /> J&apos;ai effectué le virement
+              </a>
+            )}
           </div>
         )}
 

@@ -1135,6 +1135,11 @@ export default function AdminPage() {
                           {order.status === 'paid' ? 'Payée' : 'Virement attendu'}
                         </span>
                         {order.paymentRef && <div className="mt-1 font-mono text-[10px] text-slate-500">{order.paymentRef}</div>}
+                        {order.transferDeclared && (
+                          <div className="mt-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300" title={order.transferDeclaredAt || ''}>
+                            ✓ Virement déclaré par le client
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 py-2 text-xs text-slate-600 dark:text-slate-300">
                         {order.checkedInCount}/{order.ticketCount}
@@ -1787,6 +1792,11 @@ export default function AdminPage() {
                         Motif de virement : <strong className="font-mono">{orderDetail.paymentRef}</strong>
                       </div>
                     )}
+                    <div className={`mt-1 text-xs font-bold ${orderDetail.transferDeclared ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-500 dark:text-slate-400'}`}>
+                      {orderDetail.transferDeclared
+                        ? `✓ Virement déclaré par le client${orderDetail.transferDeclaredAt ? ` le ${new Date(orderDetail.transferDeclaredAt).toLocaleString('fr-FR')}` : ''}`
+                        : 'Le client n’a pas encore déclaré le virement.'}
+                    </div>
                     {orderDetail.status !== 'paid' && (
                       <button
                         type="button"

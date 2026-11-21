@@ -12,6 +12,7 @@ import { catalogRouter } from './catalog.ts';
 import { commerceRouter } from './commerce.ts';
 import { initDb } from './db.ts';
 import { eventsRouter } from './events.ts';
+import { transferRouter } from './transfer.ts';
 import { HttpError } from './http.ts';
 
 /**
@@ -72,8 +73,13 @@ export function createApp() {
       const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
       const level =
         res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info';
+      // Le jeton de déclaration est un secret : ne jamais l'écrire dans les logs.
+      const safeUrl = req.originalUrl.replace(
+        /([?&](?:jeton|token)=)[^&]+/gi,
+        '$1***'
+      );
       console[level](
-        `[api] ${req.method} ${req.originalUrl} → ${res.statusCode} (${durationMs.toFixed(1)} ms)`
+        `[api] ${req.method} ${safeUrl} → ${res.statusCode} (${durationMs.toFixed(1)} ms)`
       );
     });
     next();
@@ -107,6 +113,7 @@ export function createApp() {
   app.use('/api', commerceRouter);
   app.use('/api', accountRouter);
   app.use('/api', eventsRouter);
+  app.use('/api', transferRouter);
   app.use('/api', adminRouter);
 
   app.use('/api', (_req, _res, next) => {

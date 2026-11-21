@@ -166,13 +166,23 @@ Le montant est stocké en **centimes** dans PostgreSQL et converti en euros aux 
 2. Il saisit son nom, son e-mail et éventuellement son téléphone.
 3. `POST /api/orders/guest` crée une commande **en attente de virement**, génère un numéro de bon de commande (`BC-AAAA-XXXXXX`), une référence de virement unique (`RCL-AAAA-XXXXXXXX`) et un code par billet.
 4. Le site et l'e-mail client affichent le titulaire, l'IBAN, le BIC, le montant et le motif de virement. Une notification est envoyée à l'admin (`ADMIN_EMAIL`).
-5. Les billets restent en attente jusqu'à confirmation manuelle du virement dans `/admin`.
+5. Le client effectue son virement puis clique sur **« J'ai effectué le virement »** : un lien privé (jeton aléatoire) lui est envoyé par e-mail et s'affiche aussi sur l'écran de confirmation. La page `/declarer-virement` lui permet de confirmer à tout moment.
+6. Les billets restent en attente jusqu'à confirmation manuelle de la réception du virement dans `/admin`. La déclaration du client est visible dans la liste et le détail des commandes (`✓ Virement déclaré par le client`).
 
 ### Vérification — `/verifier`
 
 - **Par bon de commande** (`BC-…`) : affiche l'événement, le total, les billets et leur statut. Les données personnelles sont **masquées** (`J*** T***`, `j********@example.com`).
 - **Par code billet** (`RCL-…`) : affiche la catégorie, le bénéficiaire masqué et le statut (`valid`, `used`, `cancelled`).
 - Un numéro inconnu renvoie une erreur 404 explicite.
+- Le statut distingue « Virement en attente », « Virement déclaré · en cours de vérification » et « Payée ».
+
+### Déclaration du virement — `/declarer-virement`
+
+- Le lien contient un jeton aléatoire de 192 bits envoyé par e-mail ; seule son **empreinte SHA-256** est stockée en base (`transfer_token_hash`). Le jeton en clair n'est ni journalisé ni exposé par les API publiques.
+- `POST /api/transfer-declaration/info` renvoie les informations minimales de la commande (numéro, montant, motif, coordonnées bancaires, nom masqué).
+- `POST /api/transfer-declaration/declare` enregistre `transfer_declared_at`. L'opération est **idempotente** : plusieurs clics ou plusieurs onglets ne créent qu'une seule déclaration.
+- Un jeton invalide renvoie 404 ; une commande déjà réglée renvoie un message sans modifier la déclaration.
+- Le client peut aussi coller son jeton directement sur la page s'il a perdu le lien.
 
 La page d'accueil affiche désormais le catalogue des événements publiés enregistrés en base, avec leurs catégories de billets actives. Le parcours historique de matchs n'est plus affiché sur la page d'accueil.
 
@@ -190,7 +200,7 @@ Accessible uniquement via **`/admin`** (aucun lien dans la navigation publique).
 - **Tableau de bord** : nombre d'événements, commandes, billets vendus, recette, contrôles d'accès.
 - **Événements** : création, modification, publication/annulation, suppression (refusée si des commandes existent).
 - **Coordonnées bancaires** : titulaire, IBAN et BIC utilisés pour les virements instantanés SEPA.
-- **Commandes** : la référence de virement est affichée ; confirmez la réception du paiement pour activer les billets.
+- **Commandes** : la référence de virement et la déclaration du client sont affichées ; confirmez la réception du paiement pour activer les billets.
 - **Images** : URL externe ou import d'un fichier local (JPG, PNG, WebP). Le navigateur redimensionne et compresse l'image en JPEG, puis l'API la stocke dans `event_images` et renvoie une URL `/api/images/:id`.
 - **Catégories de billets** : nom, description, prix, stock, maximum par commande, activation/désactivation, suppression (refusée si des ventes existent).
 - **Commandes** : recherche par bon de commande, nom ou e-mail, détail complet et billets.
@@ -232,6 +242,8 @@ Les routes marquées 🛡️ nécessitent le cookie de session administrateur.
 | `GET` | `/images/:id` | — | Image d'événement importée (cache long) |
 | `POST` | `/orders/guest` | voir ci-dessous | Commande sans compte + e-mails |
 | `GET` | `/orders/verify/:orderNumber` | — | Vérification publique d'un bon de commande (données masquées) |
+| `POST` | `/transfer-declaration/info` | `{ token }` | Informations de la commande à partir du jeton privé du lien e-mail |
+| `POST` | `/transfer-declaration/declare` | `{ token }` | Déclaration idempotente du virement par le client |
 | `GET` | `/tickets/verify/:code` | — | Vérification publique d'un billet (données masquées) |
 
 Exemple de commande invité :

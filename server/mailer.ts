@@ -108,6 +108,8 @@ export interface MailOrder {
     reference: string;
     amount: number;
   };
+  /** Jeton privé du lien « j'ai effectué le virement ». */
+  transferDeclarationToken?: string;
   tickets: MailTicket[];
 }
 
@@ -153,8 +155,10 @@ async function sendMail(
   const client = getTransporter();
 
   if (!client) {
+    // Le lien de déclaration contient un jeton privé : ne pas l'écrire dans les logs.
+    const safeText = text.replace(/(declarer-virement\?jeton=)[^\s]+/gi, '$1***');
     console.log(
-      `[mail] SMTP non configuré — e-mail « ${subject} » pour ${to} non envoyé.\n${text}`
+      `[mail] SMTP non configuré — e-mail « ${subject} » pour ${to} non envoyé.\n${safeText}`
     );
     const result: SendResult = { status: 'skipped' };
     await logEmail(orderNumber, to, kind, subject, result);
@@ -233,6 +237,11 @@ export async function sendOrderEmails(order: MailOrder): Promise<void> {
   const verifyUrl = `${appUrl()}/verifier?commande=${encodeURIComponent(
     order.orderNumber
   )}`;
+  const declareUrl = order.transferDeclarationToken
+    ? `${appUrl()}/declarer-virement?jeton=${encodeURIComponent(
+        order.transferDeclarationToken
+      )}`
+    : null;
 
   const clientSubject = `Votre commande ${order.orderNumber} — ${order.eventTitle}`;
   const clientText = [
@@ -264,6 +273,13 @@ export async function sendOrderEmails(order: MailOrder): Promise<void> {
     `Motif obligatoire : ${order.payment.reference}`,
     'Les billets seront validés après réception du virement.',
     '',
+    ...(declareUrl
+      ? [
+          'Virement effectué ? Confirmez-le en un clic :',
+          declareUrl,
+          ''
+        ]
+      : []),
     `Vérifiez votre commande à tout moment : ${verifyUrl}`,
     '',
     'Conservez ce numéro de commande : il vous permet de retrouver vos billets.',
@@ -310,6 +326,11 @@ export async function sendOrderEmails(order: MailOrder): Promise<void> {
        <p style="margin:4px 0">Motif obligatoire : <strong style="font-family:monospace">${escapeHtml(order.payment.reference)}</strong></p>
        <p style="margin:8px 0 0;font-size:12px">Les billets seront validés après réception du virement.</p>
      </div>
+     ${declareUrl ? `<div style="margin-top:20px;padding:16px;background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px">
+       <h2 style="margin:0 0 8px;font-size:16px;color:#065f46">Virement effectué ?</h2>
+       <p style="margin:0 0 12px;font-size:13px;color:#047857">Confirmez-nous que vous avez bien réalisé le virement : notre équipe pourra ainsi rapprocher votre paiement plus rapidement.</p>
+       <a href="${declareUrl}" style="display:inline-block;background:#059669;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:bold">J'ai effectué le virement</a>
+     </div>` : ''}
      <p style="margin-top:24px">
        <a href="${verifyUrl}" style="display:inline-block;background:#C8102E;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:bold">Vérifier ma commande</a>
      </p>

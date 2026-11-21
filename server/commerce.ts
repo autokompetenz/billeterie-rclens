@@ -28,6 +28,7 @@ import { ADDON_PRICES, PROMO_CODES } from './seed-data.ts';
 import { sendOrderEmails } from './mailer.ts';
 import {
   createPaymentReference,
+  createTransferToken,
   getBankAccountSettings,
   paymentInstructions
 } from './payment.ts';
@@ -544,13 +545,14 @@ commerceRouter.post(
         orderId = `CMD-RCL-${randomInt(100000, 999999)}`;
       }
       const createdAt = isoNow();
+      const transfer = createTransferToken();
 
       await tx.execute(
         `INSERT INTO orders (
            id, user_id, buyer_name, buyer_email, tickets_total_cents,
            addons_total_cents, discount_cents, total_cents, promo_code,
-           payment_ref, addons_json, status, created_at
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending_payment',$12)`,
+           payment_ref, addons_json, status, created_at, transfer_token_hash
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending_payment',$12,$13)`,
         [
           orderId,
           userId,
@@ -563,7 +565,8 @@ commerceRouter.post(
           promoCode ?? null,
           paymentReference,
           JSON.stringify(addons),
-          createdAt
+          createdAt,
+          transfer.hash
         ]
       );
 
@@ -658,6 +661,7 @@ commerceRouter.post(
       return {
         success: true,
         orderId,
+        transferToken: transfer.token,
         tickets: createdTickets.map(mapTicket),
         total: centsToEuros(totalCents),
         discount: centsToEuros(discountCents),
@@ -685,6 +689,7 @@ commerceRouter.post(
         totalCents: Math.round(result.total * 100),
         createdAt: new Date().toISOString(),
         payment: transfer,
+        transferDeclarationToken: result.transferToken,
         tickets: result.tickets.map((ticket) => ({
           code: ticket.ticketNumber,
           typeName: `${ticket.standName} · ${ticket.sectorName}`,

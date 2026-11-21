@@ -220,6 +220,8 @@ export interface GuestOrderResult {
   status: string;
   total: number;
   payment: BankTransferDetails;
+  /** Jeton privé du lien « j'ai effectué le virement ». */
+  transferDeclarationToken?: string;
   event: {
     id: string;
     title: string;
@@ -240,10 +242,34 @@ export interface BankTransferDetails {
   amount: number;
 }
 
+export interface TransferDeclarationInfo {
+  orderNumber: string;
+  status: string;
+  total: number;
+  paymentReference: string | null;
+  declaredAt: string | null;
+  buyerName: string;
+  eventTitle: string | null;
+  bankAccount: {
+    accountHolder: string;
+    iban: string;
+    bic: string;
+  };
+}
+
+export interface TransferDeclarationResult {
+  orderNumber: string;
+  status: string;
+  declaredAt: string | null;
+  alreadyDeclared: boolean;
+  message: string;
+}
+
 export interface VerifiedOrder {
   found: boolean;
   orderNumber: string;
   status: string;
+  transferDeclared: boolean;
   createdAt: string;
   total: number;
   event: {
@@ -295,6 +321,8 @@ export interface AdminOrderSummary {
   buyerEmail: string;
   buyerPhone: string | null;
   paymentRef: string | null;
+  transferDeclared: boolean;
+  transferDeclaredAt: string | null;
   total: number;
   status: string;
   createdAt: string;
@@ -308,6 +336,8 @@ export interface AdminOrderDetail {
   createdAt: string;
   total: number;
   paymentRef: string | null;
+  transferDeclared: boolean;
+  transferDeclaredAt: string | null;
   event: {
     id: string;
     title: string;

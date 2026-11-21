@@ -208,8 +208,12 @@ export default function VerifyPage() {
                   {order.orderNumber}
                 </div>
               </div>
-              <span className={`rounded-full px-3 py-1 text-xs font-bold ${order.status === 'paid' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'}`}>
-                {order.status === 'paid' ? `${order.summary.valid} billet(s) valide(s)` : 'Virement en attente · billets non activés'}
+              <span className={`rounded-full px-3 py-1 text-xs font-bold ${order.status === 'paid' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : order.transferDeclared ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'}`}>
+                {order.status === 'paid'
+                  ? `${order.summary.valid} billet(s) valide(s)`
+                  : order.transferDeclared
+                    ? 'Virement déclaré · en cours de vérification'
+                    : 'Virement en attente · billets non activés'}
               </span>
             </div>
 

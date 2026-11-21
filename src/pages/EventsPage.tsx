@@ -980,6 +980,24 @@ export default function EventsPage() {
                 </div>
               </div>
 
+              {result.transferDeclarationToken && (
+                <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-left dark:border-emerald-900 dark:bg-emerald-950/30">
+                  <h2 className="font-heading text-sm font-black uppercase text-emerald-800 dark:text-emerald-300">
+                    Virement effectué ?
+                  </h2>
+                  <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
+                    Confirmez-le en un clic : le service billetterie pourra rapprocher votre
+                    paiement plus rapidement. Un lien privé vous a aussi été envoyé par e-mail.
+                  </p>
+                  <a
+                    href={`/declarer-virement?jeton=${encodeURIComponent(result.transferDeclarationToken)}`}
+                    className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-500"
+                  >
+                    <CheckCircle2 className="h-4 w-4" /> J&apos;ai effectué le virement
+                  </a>
+                </div>
+              )}
+
               <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
                 <a
                   href={`/verifier?commande=${encodeURIComponent(result.orderNumber)}`}

@@ -4,6 +4,7 @@ import App from './App.tsx';
 import AdminPage from './pages/AdminPage.tsx';
 import EventsPage from './pages/EventsPage.tsx';
 import VerifyPage from './pages/VerifyPage.tsx';
+import DeclareTransferPage from './pages/DeclareTransferPage.tsx';
 import HomePage from './pages/HomePage.tsx';
 import EventDetailPage from './pages/EventDetailPage.tsx';
 import './index.css';
@@ -13,6 +14,7 @@ import './index.css';
  * - /              → accueil : événements publiés en base + achat invité
  * - /evenements    → catalogue d'événements + achat invité
  * - /verifier      → vérification d'un bon de commande / billet
+ * - /declarer-virement → confirmation du virement par le client (lien privé)
  * - /admin         → espace administrateur masqué
  */
 
@@ -23,6 +25,7 @@ function resolvePage(pathname: string) {
   if (path === '/evenements') return <EventsPage />;
   if (path.startsWith('/evenements/')) return <EventDetailPage slug={decodeURIComponent(path.slice('/evenements/'.length))} />;
   if (path === '/verifier') return <VerifyPage />;
+  if (path === '/declarer-virement') return <DeclareTransferPage />;
   return <App />;
 }
 

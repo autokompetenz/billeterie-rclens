@@ -487,10 +487,21 @@ async function createSchema(): Promise<void> {
     ALTER TABLE guest_orders ADD COLUMN IF NOT EXISTS event_title TEXT;
     ALTER TABLE guest_orders ADD COLUMN IF NOT EXISTS event_date TIMESTAMPTZ;
     ALTER TABLE guest_orders ADD COLUMN IF NOT EXISTS event_venue TEXT;
+    -- Déclaration de virement par le client (lien privé envoyé par e-mail).
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS transfer_declared_at TEXT;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS transfer_token_hash TEXT;
+    ALTER TABLE guest_orders ADD COLUMN IF NOT EXISTS transfer_declared_at TEXT;
+    ALTER TABLE guest_orders ADD COLUMN IF NOT EXISTS transfer_token_hash TEXT;
   `);
   await getPool().query(
     'CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_payment_ref ON orders(payment_ref) WHERE payment_ref IS NOT NULL'
   );
+  await getPool().query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_transfer_token
+      ON orders(transfer_token_hash) WHERE transfer_token_hash IS NOT NULL;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_guest_orders_transfer_token
+      ON guest_orders(transfer_token_hash) WHERE transfer_token_hash IS NOT NULL;
+  `);
 }
 
 /* ------------------------------------------------------------------ */
